@@ -1,0 +1,205 @@
+object fraCfgConOra: TfraCfgConOra
+  Left = 0
+  Height = 249
+  Top = 0
+  Width = 332
+  ClientHeight = 249
+  ClientWidth = 332
+  TabOrder = 0
+  DesignLeft = 230
+  DesignTop = 282
+  object lstConex: TListBox
+    Left = 8
+    Height = 96
+    Top = 8
+    Width = 208
+    ItemHeight = 0
+    OnClick = lstConexClick
+    OnDrawItem = lstConexDrawItem
+    OnMeasureItem = lstConexMeasureItem
+    Style = lbOwnerDrawVariable
+    TabOrder = 0
+  end
+  object optSqlplus: TRadioButton
+    Left = 184
+    Height = 19
+    Top = 152
+    Width = 58
+    Caption = 'Sqlplus'
+    OnChange = optSqlplusChange
+    TabOrder = 4
+  end
+  object optTelnet: TRadioButton
+    Left = 262
+    Height = 19
+    Top = 152
+    Width = 50
+    Caption = 'Other'
+    OnChange = optTelnetChange
+    TabOrder = 5
+  end
+  object lblRuta: TLabel
+    Left = 9
+    Height = 15
+    Top = 179
+    Width = 81
+    Caption = 'Ruta aplicativo:'
+    ParentColor = False
+  end
+  object lblParam: TLabel
+    Left = 9
+    Height = 15
+    Top = 205
+    Width = 63
+    Caption = 'Parámetros:'
+    ParentColor = False
+  end
+  object txtParam: TEdit
+    Left = 112
+    Height = 23
+    Top = 203
+    Width = 201
+    TabOrder = 6
+    Text = 'txtParam'
+  end
+  object lblNombre: TLabel
+    Left = 8
+    Height = 15
+    Top = 122
+    Width = 47
+    Caption = 'Nombre:'
+    ParentColor = False
+  end
+  object txtNombre: TEdit
+    Left = 71
+    Height = 23
+    Top = 119
+    Width = 145
+    TabOrder = 7
+    Text = 'txtNombre'
+  end
+  object btnNuevo: TButton
+    Left = 224
+    Height = 25
+    Hint = 'Crea una nueva conexión'
+    Top = 8
+    Width = 88
+    Caption = '&Agregar'
+    OnClick = btnNuevoClick
+    TabOrder = 1
+  end
+  object btnModif: TButton
+    Left = 224
+    Height = 25
+    Hint = 'Modifica una conexión'
+    Top = 32
+    Width = 88
+    Caption = '&Modificar'
+    OnClick = btnModifClick
+    TabOrder = 2
+  end
+  object btnElim: TButton
+    Left = 224
+    Height = 25
+    Hint = 'Elimina una conexión'
+    Top = 56
+    Width = 88
+    Caption = '&Eliminar'
+    OnClick = btnElimClick
+    TabOrder = 3
+  end
+  object lblTipo: TLabel
+    Left = 9
+    Height = 15
+    Top = 152
+    Width = 94
+    Caption = 'Tipo de conexión:'
+    ParentColor = False
+  end
+  object optDriver: TRadioButton
+    Left = 112
+    Height = 19
+    Top = 152
+    Width = 51
+    Caption = 'Driver'
+    Enabled = False
+    OnChange = optDriverChange
+    TabOrder = 8
+  end
+  object filRuta: TFileNameEdit
+    Left = 112
+    Height = 23
+    Top = 179
+    Width = 179
+    FilterIndex = 0
+    HideDirectories = False
+    ButtonWidth = 23
+    NumGlyphs = 1
+    MaxLength = 0
+    TabOrder = 9
+  end
+  object btnFijActual: TButton
+    Left = 224
+    Height = 25
+    Hint = 'Elegir la conexión actual'
+    Top = 80
+    Width = 88
+    Caption = '&FIjar Actual'
+    OnClick = btnFijActualClick
+    TabOrder = 10
+  end
+  object btnProbar: TButton
+    Left = 224
+    Height = 25
+    Top = 117
+    Width = 88
+    Caption = '&Probar'
+    Enabled = False
+    OnClick = btnProbarClick
+    TabOrder = 11
+  end
+  object ImageList1: TImageList
+    left = 120
+    top = 32
+    Bitmap = {
+      4C69010000001000000010000000FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF000000000000000000000000000000
+      0000000000000000000000000000000000000000000000000000000000000000
+      00009FA0A2FFC9C7C6B4FFFFFF00FFFFFF000000000000000000000000000000
+      0000000000000000000000000000B68140FFB57F3EFFB57F3DFFB87F39FF9CA4
+      ADFFCCCCCEFF707173FFFFFFFF00FFFFFF000000000000000000000000000000
+      00000000000000000000B57F3EFFFFEAC3FFFFE1B8FFFFDDB0FFFFDBABFFB97E
+      35FF6B737DFF00000033FFFFFF00FFFFFF000000000000000000000000000000
+      000000000000B78241FFFFDCA2FFAE7735FFFAD4A3FFF6C079FFF4BB70FFF7CD
+      93FFBC833EFF00000000FFFFFF00FFFFFF000000000000000000000000000000
+      000000000000B7803DFFEFCB9FFFFFCD8CFFAD7837FFEEC68BFFF0B76AFFECC0
+      81FFB78241FF00000000FFFFFF00FFFFFF00000000000000000000000000B782
+      41FFB67F3CFFB8C4D5FFB57E3AFFECC28ADEF9C179FFAF7A3BFFE6B975FFE6B5
+      70FFB78343FF00000000FFFFFF00FFFFFF000000000000000000B57F3EFFFFDA
+      9FFFF5D5A7DDB47D39FF00000033B57F3FFFE9BF84DEF1B766FFB27E3FFFE1AC
+      5FFFB88445FF00000000FFFFFF00FFFFFF0000000000B68140FFFFEBC5FFAD77
+      35FFFFCB88FFEEC792DEB57F3FFF00000033B57F3CFFE9C591FFEDAF56FFB784
+      45FF0000003300000000FFFFFF00FFFFFF0000000000B5803FFFFFDCAFFFFBD7
+      A7FFAD7837FFF9C27BFFE5BA7BDEB57F3EFFB9C5D8FFB8813FFFB88444FF0000
+      00330000000000000000FFFFFF00FFFFFF0000000000B6803EFFF8D19EFFF8C2
+      7DFFF2CB94FFAE7A3BFFF4BA6BFFDDAC64DDB88240FF00000033000000330000
+      00000000000000000000FFFFFF00FFFFFF0000000000B9803AFFF4C98FFFF6C0
+      78FFF2BB70FFEBBF81FFB17D3FFFEFB35DFFB88444FF00000000000000000000
+      00000000000000000000FFFFFF00FFFFFF00000000009CA4AEFFB97E37FFF9C1
+      73FFF2BA6DFFEFB665FFE5B56DFFB78344FF0000003300000000000000000000
+      00000000000000000000FFFFFF00FFFFFF009FA0A2FFCCCCCEFF6B737DFFBB83
+      3FFFB78243FFB68344FFB88445FF000000330000000000000000000000000000
+      00000000000000000000FFFFFF00FFFFFF00B9B7B6C3707273FF000000330000
+      0033000000330000003300000033000000000000000000000000000000000000
+      00000000000000000000FFFFFF00FFFFFF000000002400000033000000000000
+      0000000000000000000000000000000000000000000000000000000000000000
+      00000000000000000000FFFFFF00
+    }
+  end
+  object mnConex: TPopupMenu
+    Images = ImageList1
+    left = 40
+    top = 32
+  end
+end
