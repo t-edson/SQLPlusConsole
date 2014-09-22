@@ -1,5 +1,16 @@
+{FrameExplorBD 0.4b
+===================
+Por Tito Hinostroza 21/9/2014
+* Se cambia el comportamiento de los objetos Vista en el explorador, para que se
+muestren de forma similar a una tabla, crando dos nodos por cada vista (Columnas y Código).
+* Se cambia el comportamiento para que las tablas y vistas no se abran al actualizarse.
+
+Descripción
+===========
+Frame para implementar un explorador de objetos de una base de datos Oracle, usando
+la unidad SQLPlusConsole.
+}
 unit FrameExplorBD;
-{Frame para implementar un explorador de objetos de una base de datos Oracle}
 {$mode objfpc}{$H+}
 
 interface
@@ -20,29 +31,35 @@ type
                  enSinDatos   //actualizado pero sin datos
                  );
   //Tipos de nodo
-  TTipoNodo = (tnDescon,     //desconocido
-               tnListTablas, //lista de tablas
-               tnTabla,      //tabla
+  TTipoNodo = (tnDescon,      //desconocido
+
+               tnListTablas,  //lista de tablas
+               tnTabla,       //tabla
                tnTabListCampo, //lista de campo de tabla
-               tnTabCampo,      //campo de tabla
+               tnTabCampo,     //campo de tabla
                tnTabListIndic, //lista de índices de tabla
-               tnTabIndic,      //índice de tabla
-               tnListVistas, //lista de vistas
+               tnTabIndic,     //índice de tabla
+
+               tnListVistas,  //lista de vistas
                tnVista,       //actualizado pero sin datos
-               tnListIndic,  //lista de índices
-               tnIndic,      //Índice
-               tnListProced, //lista de procedimientos
-               tnProced,     //procedimiento
-               tnListFuncio, //lista de funciones
-               tnFuncio,     //función
-               tnListDBlnks, //lsita de DB links
-               tnDBlnk,      //DB link
-               tnListEsquem, //lista de esquemas
-               tnEsquem,     //esquema
-               tnListUsuar,  //lista de usuarios
-               tnUsuar,      //usuario
-               tnListTabSpa, //lista de Tablespaces
-               tnTabSpa      //Tablespace
+               tnVisListCampo,//Lista de campos de uan vista
+               tnVisCampo,    //campo de una vista
+               tnVisDefinic,  //Definición de la vista
+
+               tnListIndic,   //lista de índices
+               tnIndice,      //Índice
+               tnListProced,  //lista de procedimientos
+               tnProced,      //procedimiento
+               tnListFuncio,  //lista de funciones
+               tnFuncio,      //función
+               tnListDBlnks,  //lsita de DB links
+               tnDBlnk,       //DB link
+               tnListEsquem,  //lista de esquemas
+               tnEsquem,      //esquema
+               tnListUsuar,   //lista de usuarios
+               tnUsuar,       //usuario
+               tnListTabSpa,  //lista de Tablespaces
+               tnTabSpa       //Tablespace
                );
 
   { TBDNodo }
@@ -52,6 +69,7 @@ type
     public
       tipNod: TTipoNodo;    //tipo de nodo
       estado: TEstadoNodo;  //estado del nodo
+      user  : string;       //para cuando el nodo pertenezca a un usuario (para el usuario actual, dejar en blanco)
       sql   : string;       //consulta ejecutada para llenar el nodo.
       dat   : string;       //fila de datos, cuando se haya dfinido que el nodo trabaje así
       codigo: string;       //código fuente u otor contenido, en caso de que se aplique al nodo.
@@ -90,6 +108,7 @@ type
     cnx     : TConOra;       //conexión a Oracle
     txtSentEspera: String;
     nodAct: TBDnodo;  //Nodo que recibe datos de la consulta actual
+    procedure CreaEstructuraEsquema(nodEsq: TBDNodo; user: string);
     procedure FijarNodoActualSQL(Node: TTreeNode; ForzarExpan: boolean=true);
     procedure FijEstadoNodo(n: TBDnodo; estado0: TEstadoNodo; ForzarExpan: boolean=
       true);
@@ -97,8 +116,8 @@ type
     function LanzarSentencia(sql: string; Node: TTreeNode; ForzarExpan: boolean
       ): boolean;
     procedure LLenarNodoActual(const cad: string; tipNod: TTipoNodo; sql: string);
-    function NuevoNodo(nod: TTreeNode; txt: String; tipNod0: TTipoNodo;
-      idIco: integer): TBDnodo;
+    function NuevoNodo(nod: TBDNodo; txt: String; tipNod0: TTipoNodo; idIco: integer
+      ): TBDnodo;
     procedure PonerMensNodo(nod: TBDnodo; n: integer);
     procedure PonerMensNodo(nod: TBDnodo; txt: string);
     procedure SentenciaEnEspera;
@@ -250,15 +269,16 @@ begin
   TreeView1.EndUpdate;           //termina actualización
   TreeView1.OnExpanding:=evTmp;  //restablece evento
 end;
-function TfraExplorBD.NuevoNodo(nod: TTreeNode; txt: String; tipNod0: TTipoNodo; idIco: integer): TBDnodo;
+function TfraExplorBD.NuevoNodo(nod: TBDNodo; txt: String; tipNod0: TTipoNodo; idIco: integer): TBDnodo;
 //Agrega un nodo a TreeView1, y coloca su índice de ícono. Devuelve un TBDNodo, en lugar
-//de TTreeNode. Pone además HasChildren en TRUE y pone su esatdo en "enNoInic".
+//de TTreeNode. Pone además HasChildren en TRUE y pone su estado en "enNoInic".
 begin
   Result:= TBDNodo(TreeView1.Items.AddChild(nod,txt));
   Result.tipNod:=tipNod0;
   Result.ImageIndex:=idIco;
   Result.SelectedIndex:=idIco;
   Result.HasChildren:=true;
+//  Result.user:=nod.user;  //no conviene generalizar
   FijEstadoNodo(Result, enNoInic);  //lo crea como nodo vacío
 end;
 constructor TfraExplorBD.Create(AOwner: TComponent);  //
@@ -286,6 +306,41 @@ begin
   ventSes.Free;
   inherited Destroy;
 end;
+procedure TfraExplorBD.CreaEstructuraEsquema(nodEsq: TBDNodo; user: string);
+//Recrea la estructura del TreeView para un nodo de tipo esquema
+var
+  nod: TBDNodo;
+begin
+  if user = '' then begin  //es el usuario actual
+    nod:= NuevoNodo(nodEsq,'Tablas', tnListTablas, 7);
+    nod.user:=user;  //pasa al usuario
+    nod.sql:='SELECT TABLE_NAME, ''      '' "OWNER", NUM_ROWS, TABLESPACE_NAME' +LineEnding+
+             'FROM USER_TABLES ORDER BY 1;';
+    nod := NuevoNodo(nodEsq,'Vistas', tnListVistas,6);
+    nod.user:=user;  //pasa al usuario
+    nod.sql:='SELECT VIEW_NAME , ''      '' "OWNER", TEXT_LENGTH, TEXT' + LineEnding +
+             'FROM USER_VIEWS ORDER BY 1;';
+    nod := NuevoNodo(nodEsq,'Índices', tnListIndic,5);
+    nod.user:=user;  //pasa al usuario
+    nod.sql:='SELECT INDEX_NAME, ''      '' "OWNER", TABLE_NAME, UNIQUENESS, TABLESPACE_NAME' + LineEnding +
+             'FROM USER_INDEXES ORDER BY 1;';
+    nod := NuevoNodo(nodEsq,'Procedimientos', tnListProced,4);
+    nod.user:=user;  //pasa al usuario
+    nod.sql:='select OBJECT_NAME, OBJECT_ID, CREATED, LAST_DDL_TIME, STATUS, TEMPORARY'#13#10+
+             'from user_objects where OBJECT_TYPE=''PROCEDURE'' ORDER BY 1;';
+    nod := NuevoNodo(nodEsq,'Funciones', tnListFuncio,3);
+    nod.user:=user;  //pasa al usuario
+    nod.sql:='select OBJECT_NAME, OBJECT_ID, CREATED, LAST_DDL_TIME, STATUS, TEMPORARY'#13#10+
+             'from user_objects where OBJECT_TYPE=''FUNCTION'' ORDER BY 1;';
+    nod := NuevoNodo(nodEsq,'Enlaces a BD', tnListDBlnks,2);
+    nod.user:=user;  //pasa al usuario
+    nod.sql:='SELECT DB_LINK, USERNAME, PASSWORD, HOST, CREATED' + LineEnding +
+             'FROM USER_DB_LINKS ORDER BY 1;';
+    nodEsq.Expand(false);
+  end else begin  //se especifica otro usuario
+
+  end;
+end;
 procedure TfraExplorBD.InicEstructura;  //Recrea la estructura del TreeView
 var nod : TBDnodo;
 begin
@@ -293,31 +348,11 @@ begin
   TreeView1.Items.Clear;  //inicia
   ////////////// ESQUEMA ACTUAL ///////////////////
   nEsqActual := NuevoNodo(nil,'Esquema Actual',tnEsquem, 8);
-  nod:= NuevoNodo(nEsqActual,'Tablas', tnListTablas, 7);
-  nod.sql:='SELECT TABLE_NAME, ''      '' "OWNER", NUM_ROWS, TABLESPACE_NAME FROM TABS ORDER BY 1;';
-  nod := NuevoNodo(nEsqActual,'Vistas', tnListVistas,6);
-  nod.sql:='SELECT VIEW_NAME , ''      '' "OWNER", TEXT_LENGTH, TEXT FROM USER_VIEWS ORDER BY 1;';
-  nod := NuevoNodo(nEsqActual,'Índices', tnListIndic,5);
-  nod.sql:='SELECT INDEX_NAME, ''      '' "OWNER", TABLE_NAME, UNIQUENESS, TABLESPACE_NAME FROM USER_INDEXES ORDER BY 1;';
-  nod := NuevoNodo(nEsqActual,'Procedimientos', tnListProced,4);
-  nod.sql:='select OBJECT_NAME, OBJECT_ID, CREATED, LAST_DDL_TIME, STATUS, TEMPORARY'#13#10+
-           'from user_objects where OBJECT_TYPE=''PROCEDURE'' ORDER BY 1;';
-  nod := NuevoNodo(nEsqActual,'Funciones', tnListFuncio,3);
-  nod.sql:='select OBJECT_NAME, OBJECT_ID, CREATED, LAST_DDL_TIME, STATUS, TEMPORARY'#13#10+
-           'from user_objects where OBJECT_TYPE=''FUNCTION'' ORDER BY 1;';
-  nod := NuevoNodo(nEsqActual,'Enlaces a BD', tnListDBlnks,2);
-  nod.sql:='SELECT DB_LINK, USERNAME, PASSWORD, HOST, CREATED FROM USER_DB_LINKS ORDER BY 1;';
-  nEsqActual.Expand(false);
-
+  nEsqActual.user:='';  //indica que es el usuario actual
+  CreaEstructuraEsquema(nEsqActual,'');
   ////////////// OTROS ESQUEMAS ///////////////////
   nEsqOtros := NuevoNodo(nil,'Otros Esquemas', tnListEsquem, 8);
-  nEsqOtros.sql:='select distinct owner from dba_objects;'; //Se requiere privilegios DBA.
-//  TreeView1.Items.AddChild(nEsqActual,'Tablas');
-//  TreeView1.Items.AddChild(nEsqActual,'Vistas');
-//  TreeView1.Items.AddChild(nEsqActual,'Índices');
-//  TreeView1.Items.AddChild(nEsqActual,'Procedimientos');
-//  TreeView1.Items.AddChild(nEsqActual,'Funciones');
-//  TreeView1.Items.AddChild(nEsqActual,'Enlaces a BD');
+  nEsqOtros.sql:='SELECT * FROM all_users;'; //Se requiere privilegios DBA.
 
   //////////// TODOS LOS ESQUEMAS ///////////////////
   nEsqTodos := NuevoNodo(nil,'Todos los Esquemas',tnEsquem, 8);
@@ -398,16 +433,16 @@ debugln('  llegPrompt');
       if sqlCon.HayError then  //hubo error
         FijEstadoNodo(nodAct,enLlenoErr)
       else begin  //sin errores
-        if nodAct.tipNod in [tnVista,tnProced,tnFuncio] then begin
+        if nodAct.tipNod in [tnProced,tnFuncio,tnVisDefinic] then begin
           //estos casos no se expanden
           nodAct.codigo:=c.bolsa.Text;  //toma el resultado
           FijEstadoNodo(nodAct,enLLeno);
           PonerMensNodo(nodAct, IntToStr(c.bolsa.Count)+' líneas.');
-        end else if nodAct.tipNod = tnTabla then begin
-          //tampoco la tabla se expande
-          nodAct.codigo:=c.linMarca + LineEnding +
+        end else if nodAct.tipNod in [tnTabla, tnVista] then begin
+          //Las tablas y vistas, devuelven una cadena con descripción
+          nodAct.codigo:=c.linEncab + LineEnding + c.linMarca + LineEnding +
                          c.bolsa.Text;  //resultado con encabezado
-          FijEstadoNodo(nodAct,enLLeno);
+          FijEstadoNodo(nodAct,enLLeno,false);  //no expande
           PonerMensNodo(nodAct, IntToStr(c.bolsa.Count)+' líneas.');
         end else begin  //otros nodos
           FijEstadoNodo(nodAct,enSinDatos);
@@ -447,7 +482,7 @@ begin
 //  tnListVistas: tipNod:= tnVista;
 //  tnListProced: tipNod:= tnProced;
 //  tnListFuncio: tipNod:= tnFuncio;
-  tnListIndic : tipNod:= tnIndic;
+  tnListIndic : tipNod:= tnIndice;
   tnListDBlnks: tipNod:= tnDBlnk;
   tnListEsquem: tipNod:= tnEsquem;
   tnListUsuar : tipNod:= tnUsuar;
@@ -459,7 +494,7 @@ begin
   end;
   //agrega filas de datos
   TreeView1.BeginUpdate;
-  if nodAct.tipNod = tnListVistas then begin
+  {if nodAct.tipNod = tnListVistas then begin
     //las vistas tienen un campo multilínea
     if nodAct.RutaEs('Todos los Esquemas/Vistas') then tmp := 'ALL_VIEWS' else tmp := 'USER_VIEWS';
     if c.ExploraLinCamBas(txt,2) then{ TODO : Debería identificar también por el campo OWNER para diferenciar }
@@ -472,7 +507,7 @@ begin
           'dbms_output.put_line(''&%$'');'#13#10+
           'END;'#13#10+
           '/');
-  end else if nodAct.tipNod = tnListProced then begin
+  end else }if nodAct.tipNod = tnListProced then begin
     //los procedimientos tienen un campo multilínea
     if nodAct.RutaEs('Todos los Esquemas/Procedimientos') then tmp := 'ALL_SOURCE' else tmp := 'USER_SOURCE';
     if c.ExplorarLin(txt) then  { TODO : Debería identificar también por el campo OWNER para diferenciar }
@@ -486,22 +521,39 @@ begin
        LLenarNodoActual(txt, tnFuncio, 'select text from '+tmp+#13#10+
     'where type=''FUNCTION'' AND name='''+c.Campo(0,txt)+''''#13#10+
     'order by LINE;');
-  end else if nodAct.tipNod = tnVista then begin   //las vistas leen el texto
-    c.ExplorarDelim(txt,'&%$'); //busca contenido y lo acumula
   end else if nodAct.tipNod = tnProced then begin   //los procedimientos vienen en varias líneas
     c.ExplorarAcum(txt); //captura contenido y lo acumula
   end else if nodAct.tipNod = tnFuncio then begin   //las funciones vienen en varias líneas
     c.ExplorarAcum(txt); //captura contenido y lo acumula
   end else if nodAct.tipNod = tnListTablas then begin   //lista de tablas
-    if c.ExplorarLin(txt) then
+    if c.ExplorarLin(txt) then begin
+       //Esta consulta logra obtener información de la tabla y sus indices, sin necesidad de
+       //realizar dos consultas. Su principal objetivo es servir al aplicativo SQGraf
        LLenarNodoActual(txt, tnTabla,'SELECT substr(column_name,1,32) "COLUMN_NAME", data_type, '' '' "INDEX_NAME", column_id' +#13#10+
 'FROM user_tab_columns WHERE TABLE_NAME='''+c.Campo(0,txt)+''' UNION ALL'+#13#10+
 'SELECT substr(C.COLUMN_NAME,1,32) "COLUMN_NAME", I.UNIQUENESS, C.INDEX_NAME, 1000'+#13#10+
 'FROM ALL_INDEXES I, ALL_IND_COLUMNS C'+#13#10+
 'WHERE I.INDEX_NAME = C.INDEX_NAME AND I.TABLE_NAME = '''+c.Campo(0,txt)+''''+#13#10+
 'ORDER BY 4;');
+    end;
+  end else if nodAct.tipNod = tnListVistas then begin   //lista de tablas
+    //las vistas tienen un campo multilínea
+    if c.ExploraLinCamBas(txt,2) then begin { TODO : Debería identificar también por el campo OWNER para diferenciar }
+       //Esta consulta logra obtener información de la tabla y sus indices, sin necesidad de
+       //realizar dos consultas. Su principal objetivo es servir al aplicativo SQGraf
+       LLenarNodoActual(txt, tnVista,'SELECT substr(column_name,1,32) "COLUMN_NAME", data_type, '' '' "INDEX_NAME", column_id' +#13#10+
+'FROM user_tab_columns WHERE TABLE_NAME='''+c.Campo(0,txt)+''' UNION ALL'+#13#10+
+'SELECT substr(C.COLUMN_NAME,1,32) "COLUMN_NAME", I.UNIQUENESS, C.INDEX_NAME, 1000'+#13#10+
+'FROM ALL_INDEXES I, ALL_IND_COLUMNS C'+#13#10+
+'WHERE I.INDEX_NAME = C.INDEX_NAME AND I.TABLE_NAME = '''+c.Campo(0,txt)+''''+#13#10+
+'ORDER BY 4;');
+    end;
   end else if nodAct.tipNod = tnTabla then begin   //lista de tablas
     c.ExplorarAcum(txt); //captura contenido y lo acumula
+  end else if nodAct.tipNod = tnVista then begin   //las vistas leen el texto
+    c.ExplorarAcum(txt); //captura contenido y lo acumula
+  end else if nodAct.tipNod = tnVisDefinic then begin   //la defin. de vistas leen el texto
+    c.ExplorarDelim(txt,'&%$'); //busca contenido y lo acumula
   end else begin         //los otros objetos son comunes
     if c.ExplorarLin(txt) then
        LLenarNodoActual(txt, tipNod,'');
@@ -525,21 +577,66 @@ begin
   //agrega nuevo nodo con ícono del padre
   txt := c.campo(0,cad);  //toma el primer campo
   nod:= NuevoNodo(nodAct,txt, tipNod, nodAct.ImageIndex);
+  nod.user:=nodAct.user;
   //algunos nodos ponen sus nodos hijos sin opción de expandir
-  if tipNod in [tnVista,tnProced,tnFuncio,tnTabCampo,tnTabIndic] then begin
+  if tipNod in [tnProced,tnFuncio,tnTabCampo,tnTabIndic, tnVisCampo] then begin
     nod.HasChildren:=false;
   end else if tipNod = tnTabla then begin
-    //las tablas tienen 3 nodos fijos
-    n:= NuevoNodo(nod,'Campos', tnTabListCampo, 7);
-    n.sql:='SELECT column_name, data_type,'+LineEnding+
-    'data_length, nullable || ''       '', data_default'+LineEnding+
-    'FROM all_tab_columns'+LineEnding+
-    'WHERE owner = ''SEIM'' AND TABLE_NAME='''+txt+''' '+   ///*******SEIM????????
-    'ORDER BY column_id;';
-    n := NuevoNodo(nod,'Índices', tnTabListIndic,5);
-    n.sql:='SELECT INDEX_NAME, INDEX_TYPE, TABLE_NAME, UNIQUENESS'+LineEnding+
-    'FROM all_indexes'+LineEnding+
-    'WHERE TABLE_NAME = '''+txt+''';';
+    //las tablas tienen 2 nodos fijos
+    if nod.user = '' then begin   //es del usuario actual
+      n:= NuevoNodo(nod,'Campos', tnTabListCampo, 7);
+      n.sql:='SELECT column_name, data_type,'+LineEnding+
+      'data_length, nullable || ''       '', data_default'+LineEnding+
+      'FROM user_tab_columns'+LineEnding+
+      'WHERE TABLE_NAME='''+txt+''' '+   ///*******SEIM????????
+      'ORDER BY column_id;';
+      n := NuevoNodo(nod,'Índices', tnTabListIndic,5);
+      n.sql:='SELECT INDEX_NAME, INDEX_TYPE, TABLE_NAME, UNIQUENESS'+LineEnding+
+      'FROM user_indexes'+LineEnding+
+      'WHERE TABLE_NAME = '''+txt+''';';
+    end else if nod.user = '*' then begin  //de todos los usuarios
+{      n:= NuevoNodo(nod,'Campos', tnTabListCampo, 7);
+      n.sql:='SELECT column_name, data_type,'+LineEnding+
+      'data_length, nullable || ''       '', data_default'+LineEnding+
+      'FROM all_tab_columns'+LineEnding+
+      'WHERE owner = ''XXXXXX'' AND TABLE_NAME='''+txt+''' '+   ///*******SEIM????????
+      'ORDER BY column_id;';
+      n := NuevoNodo(nod,'Índices', tnTabListIndic,5);
+      n.sql:='SELECT INDEX_NAME, INDEX_TYPE, TABLE_NAME, UNIQUENESS'+LineEnding+
+      'FROM all_indexes'+LineEnding+
+      'WHERE TABLE_NAME = '''+txt+''';';}
+    end;
+  end else if tipNod = tnVista then begin
+    //los índices tienen 2 nodos fijos
+    if nod.user = '' then begin   //es del usuario actual
+      n:= NuevoNodo(nod,'Campos', tnVisListCampo, 7);
+      n.sql:='SELECT column_name, data_type,'+LineEnding+
+      'data_length, nullable || ''       '', data_default'+LineEnding+
+      'FROM user_tab_columns'+LineEnding+
+      'WHERE TABLE_NAME='''+txt+''' '+   ///*******SEIM????????
+      'ORDER BY column_id;';
+      n := NuevoNodo(nod,'Definición', tnVisDefinic,5);
+      n.sql:='DECLARE txt long;'+
+          'BEGIN  dbms_output.enable(100000);'#13#10+
+          'SELECT TEXT INTO txt FROM USER_VIEWS where view_name = '''+c.Campo(0,txt)+''';'#13#10+
+          'dbms_output.put_line(''.'');'#13#10+
+          'dbms_output.put_line(''&%$'');'#13#10+
+          'dbms_output.put_line(txt);'#13#10+
+          'dbms_output.put_line(''&%$'');'#13#10+
+          'END;'#13#10+
+          '/';
+    end else if nod.user = '*' then begin  //de todos los usuarios
+{      n:= NuevoNodo(nod,'Campos', tnTabListCampo, 7);
+      n.sql:='SELECT column_name, data_type,'+LineEnding+
+      'data_length, nullable || ''       '', data_default'+LineEnding+
+      'FROM all_tab_columns'+LineEnding+
+      'WHERE owner = ''XXXXXX'' AND TABLE_NAME='''+txt+''' '+   ///*******SEIM????????
+      'ORDER BY column_id;';
+      n := NuevoNodo(nod,'Índices', tnTabListIndic,5);
+      n.sql:='SELECT INDEX_NAME, INDEX_TYPE, TABLE_NAME, UNIQUENESS'+LineEnding+
+      'FROM all_indexes'+LineEnding+
+      'WHERE TABLE_NAME = '''+txt+''';';}
+    end;
   end;
   //agrega fila de datos de la consulta
   nod.dat:=cad;

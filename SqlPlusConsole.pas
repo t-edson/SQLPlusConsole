@@ -1,13 +1,9 @@
-{SQLPlusConsole 0.3b
+{SQLPlusConsole 0.4b
 ===================
-Por Tito Hinostroza 9/9/2014
-* Se crea las propiedad linSql, para hacer seguimiento al prompt, y se implementan
-las rutinas para actualización.
-* Se quita la unidad MisUtils, y se inabilita el mostrar mensajes, sino
-simplemente se actualizarán en la cadena "cadError".
-* Se modifica Open(), para tratar mejor los errores.
-* Se modifica PosicionarCursor(), para que siempre posicione en la columna 1.
-
+Por Tito Hinostroza 21/9/2014
+*
+Descripción
+===========
 Unidad para manejar el proceso SQLPLUS, como un proceso en una consola, usando la
 unidad "UnTerminal", para controlas la entrada/salida. Espera trabajar con un editor
 de tipo SynEdit. Por lo tanto, intercepta los eventos de refresco para un editor.
@@ -34,7 +30,7 @@ const
                'set tab off'#13#10+
                'set trimspool on;'#13#10+
                'set serveroutput on;'#13#10+
-               'set feedback off;'#13#10+ //para evitar que el mensaje aparezca después del prompt
+//'set feedback off;'#13#10+ //Si no hay datos con feedback=off el prompt sale en la misma fila
                'alter session set nls_date_format = ''yyyy/mm/dd hh24:mi'';'#13#10 +
                '';
 type
@@ -282,12 +278,12 @@ procedure TSQLPlusCon.SQLPlusConGetPrompt(prompt: string; pIni: TPoint;
   HeightScr: integer);
 begin
 //debugln('-GetPrompt');
-debugln('promp ant:'+IntToStr(linSqlT));
+//debugln('promp ant:'+IntToStr(linSqlT));
   BuscarErrorEnLineas;  //busca si hubo algún mesaje de error
   if HayError then begin
     if pErr.y<>-1 then begin //hay información de posición
       ShowMessage(cadError + #13#10' (Línea:' + IntToStr(pErr.y) + ', Columna:' +
-                          IntToStr(pErr.x));
+                          IntToStr(pErr.x)+')');
 //      edSQL.CaretXY:=pErr;  //ubica
     end else begin
       ShowMessage(cadError);
