@@ -1,7 +1,9 @@
 {SQLPlusConsole 0.4b
 ===================
 Por Tito Hinostroza 21/9/2014
-*
+* Se cambia nombre de EnviarSQL() a SendSQL().
+* Se cambia nombre de Iniciar() a Init().
+
 Descripción
 ===========
 Unidad para manejar el proceso SQLPLUS, como un proceso en una consola, usando la
@@ -38,7 +40,7 @@ type
 
   TSQLPlusCon = class(TConsoleProc)
   private
-    fcConOra : TfraCfgConOra;   //referencia a Frame d configuración.
+    fcConOra   : TfraCfgConOra;   //referencia a Frame d configuración.
     FmaxLinTer : integer;  //cantidad máxima de líneas que debe almacenar el terminal
     procedure BuscarErrorEnLineas;
     procedure PosicionarCursor(HeightScr: integer);
@@ -58,18 +60,18 @@ type
       HeightScr: integer);
     procedure procAddLine(HeightScr: integer);
   public
-    curSigPrm : boolean;   //Indica si el cursor seguirá al texto que llega
-    HayError  : boolean;   //Indica que se detectó un error en la última exploración
-    cadError  : string;    //guarda el mensaje de error
-    pErr      : TPoint;    //posición del error;
-    OnQueryEnd: procedure of object;
+    curSigPrm  : boolean;   //Indica si el cursor seguirá al texto que llega
+    HayError   : boolean;   //Indica que se detectó un error en la última exploración
+    cadError   : string;    //guarda el mensaje de error
+    pErr       : TPoint;    //posición del error;
+    OnQueryEnd : procedure of object;
     OnErrorConx: procedure of object;
     property maxLinTer: integer read FmaxLinTer write SetmaxLinTer;
     procedure Open;        //inicia proceso
     function Closed: boolean;
-    procedure Iniciar(PanControl: TStatusPanel; ed0: TSynEdit;
+    procedure Init(PanControl: TStatusPanel; ed0: TSynEdit;
       fcConOra0: TfraCfgConOra);
-    procedure EnviarSQL(txt: string);  //Envía consulta al SQLPLUS
+    procedure SendSQL(txt: string);  //Envía consulta al SQLPLUS
     procedure ClearScreen;
     constructor Create;  //Constructor
   end;
@@ -81,7 +83,7 @@ const
 
 { TSQLPlusCon }
 
-procedure TSQLPlusCon.Iniciar(PanControl: TStatusPanel; ed0: TSynEdit; fcConOra0: TfraCfgConOra);
+procedure TSQLPlusCon.Init(PanControl: TStatusPanel; ed0: TSynEdit; fcConOra0: TfraCfgConOra);
 //Configura la conexión, fijando el panel de estado, editor para mostrar la salida, y el
 //frame con las conexiónes.
 begin
@@ -104,7 +106,7 @@ begin
   ClearScreen;   //limpiamos solo ahora
 end;
 
-procedure TSQLPlusCon.EnviarSQL(txt: string);
+procedure TSQLPlusCon.SendSQL(txt: string);
 var
   yvt: Integer;
 begin

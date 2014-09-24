@@ -61,7 +61,7 @@ end;
 procedure TForm1.FormShow(Sender: TObject);
 begin
   Config.Initiate(StatusBar1.Panels[0]);
-  sqlCon.Iniciar(StatusBar1.Panels[1], edSal,Config.fcConOra);
+  sqlCon.Init(StatusBar1.Panels[1], edSal,Config.fcConOra);
 end;
 
 procedure TForm1.MenuItem1Click(Sender: TObject);  //config
@@ -81,7 +81,7 @@ end;
 
 procedure TForm1.MenuItem4Click(Sender: TObject);  //send
 begin
-  sqlCon.EnviarSQL(edSQL.Text);
+  sqlCon.SendSQL(edSQL.Text);
 end;
 
 procedure TForm1.StatusBar1DrawPanel(StatusBar: TStatusBar;

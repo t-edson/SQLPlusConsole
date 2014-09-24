@@ -4,6 +4,7 @@ Por Tito Hinostroza 21/9/2014
 * Se cambia el comportamiento de los objetos Vista en el explorador, para que se
 muestren de forma similar a una tabla, crando dos nodos por cada vista (Columnas y Código).
 * Se cambia el comportamiento para que las tablas y vistas no se abran al actualizarse.
+* Se compelta la definición del nombre del nodo en el método TBDNodo.nombre()
 
 Descripción
 ===========
@@ -71,8 +72,8 @@ type
       estado: TEstadoNodo;  //estado del nodo
       user  : string;       //para cuando el nodo pertenezca a un usuario (para el usuario actual, dejar en blanco)
       sql   : string;       //consulta ejecutada para llenar el nodo.
-      dat   : string;       //fila de datos, cuando se haya dfinido que el nodo trabaje así
-      codigo: string;       //código fuente u otor contenido, en caso de que se aplique al nodo.
+      dat   : string;       //fila de datos, cuando se haya definido que el nodo trabaje así
+      codigo: string;       //código fuente u otro contenido, en caso de que se aplique al nodo.
       campos: TCamposSqlPlus;  //encabezados
 //      valores: TstringList;  //filas de datos
       function nombre: string; //devuelve el nombre del nodo
@@ -167,6 +168,8 @@ begin
     Result := Copy(Text,1,i-2)  //no considera el mensaje
   else  //no hay mensaje
     Result := Text;
+  //verifica si tiene información de usuario
+  if user <> '' then Result := user + '.' + Result;
 end;
 
 function TBDNodo.RutaEs(cad: string): boolean;
@@ -751,7 +754,7 @@ begin
   end;
   ECO_READY: begin
     FijarNodoActualSQL(Node,ForzarExpan);
-    sqlCon.EnviarSQl(sql);
+    sqlCon.SendSQl(sql);
   end;
   end;
 end;
@@ -759,7 +762,7 @@ procedure TfraExplorBD.SentenciaEnEspera;
 //Lanza la sentencia que está en txtSentEspera
 begin
   if sqlCon.state <> ECO_READY then exit;
-  sqlCon.EnviarSQl(txtSentEspera);  //lanza consulta
+  sqlCon.SendSQl(txtSentEspera);  //lanza consulta
   txtSentEspera := '';  //limpia
   sqlCon.OnQueryEnd:=@qLlegoPrompt;  //restaura evento
 end;
@@ -796,7 +799,7 @@ procedure TfraExplorBD.Iniciar(PanControl: TStatusPanel; fcConOra: TfraCfgConOra
   );
 //COnfigura ala conexión. Conecta a la base de datos
 begin
-  sqlCon.Iniciar(PanControl, ventSes.edSal, fcConOra);
+  sqlCon.Init(PanControl, ventSes.edSal, fcConOra);
   if ConexIgual(cnx, fcConOra.ConexActual) then exit; //no hay cambio
   //Hubo cambio en la conexión
   Desconectar;  //cierra conexión

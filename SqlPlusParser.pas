@@ -1,4 +1,13 @@
-{Unidad con utilidades para la lectura y reconocimiento de archivos de texto en el
+{
+SQLPlusParser
+=============
+Por Tito Hinostroza  21/09/2014
+* Se modifica ExplorarLin(), para modularizar la parte de extracción de encabezados
+y hacerlo accesible al exterior.
+
+Descripción
+===========
+Unidad con utilidades para la lectura y reconocimiento de archivos de texto en el
 formato típico de salida del SQLPLUS del Oracle.
 
 El formato del archivo de texto es de campos de tamaño fijo y debe tener la forma:
@@ -64,9 +73,10 @@ type
     linAnter  : string;   //línea anterior
     sinDatos  : boolean;
   end;
+procedure ExtraerCampos(const linMarca, linEncab: string; var campos: TCamposSqlPlus);
 
 implementation
-
+//utilidades
 function Explode(delimiter:string; str:string; limit:integer=MaxInt):TStringDynArray;
 var
   p,cc,dsize:integer;
@@ -85,6 +95,33 @@ begin
   inc(cc);
   setlength(result,cc);
   result[cc-1] := str;
+end;
+procedure ExtraerCampos(const linMarca, linEncab: string; var campos: TCamposSqlPlus);
+//Extrae los campos de un texto, revisando las líneas de encabezados y de marcas
+//SE expone esta función para que sirva para extraer campos, desde fuera.
+var
+  a   : TStringDynArray;
+  x, i: Integer;
+  tmp: String;
+begin
+  a := Explode(' ', linMarca); //separa campos
+  SetLength(campos,High(a)+1);
+  //escribe propiedades
+  x := 1;
+  For i := 0 To High(a) do begin
+    tmp:= Copy(linEncab, x, Length(a[i]));
+    campos[i].nombre := Trim(tmp);
+    campos[i].etiq := campos[i].nombre; //etiqueta por defecto
+//      campos(i).ind := i;    //pone índice
+    campos[i].posIni := X;
+    campos[i].nCar := Length(a[i]);
+    //intenta deetrminar si es un campo numérico
+    if tmp[1] = ' ' then  //campo alineado a la derecha
+      campos[i].tipCam:=tcsNum   //se asume numérico
+    else
+      campos[i].tipCam:=tcsCad;  //cadena por defecto
+    x := x + Length(a[i]) + 1;   //calcula siguiente posición
+  end;
 end;
 
 { TConvSqlPlus }
@@ -105,9 +142,6 @@ end;
 function TConvSqlPlus.ExplorarLin(const cad: String):boolean;
 //Explora una línea de datos y extrae el encabezado y determina si la fila
 //ingresada es una fila de datos
-var a: TStringDynArray;
-    i, x: Integer;
-    tmp : string;
 begin
   Result := false;
   if hayEncab then begin
@@ -133,24 +167,7 @@ begin
       end;
       hayEncab:=true;
       //extrae información de los encabezados
-      a := Explode(' ', cad); //separa campos
-      SetLength(Enc,High(a)+1);
-      //escribe propiedades
-      x := 1;
-      For i := 0 To High(a) do begin
-        tmp:= Copy(linEncab, x, Length(a[i]));
-        Enc[i].nombre := Trim(tmp);
-        Enc[i].etiq := Enc[i].nombre; //etiqueta por defecto
-  //      Enc(i).ind := i;    //pone índice
-        Enc[i].posIni := X;
-        Enc[i].nCar := Length(a[i]);
-        //intenta deetrminar si es un campo numérico
-        if tmp[1] = ' ' then  //campo alineado a la derecha
-          Enc[i].tipCam:=tcsNum   //se asume numérico
-        else
-          Enc[i].tipCam:=tcsCad;  //cadena por defecto
-        x := x + Length(a[i]) + 1;   //calcula siguiente posición
-      end;
+      ExtraerCampos(linMarca, linEncab, Enc);
       exit;
     end;
   end;

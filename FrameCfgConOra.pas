@@ -1,11 +1,7 @@
 {
-FrameCfgConOra 0.3b
+FrameCfgConOra 0.4b
 ===================
-Por Tito Hinostroza 19/09/2014
-* Se agrega soporte para cambiar lenguajes.
-* Se mueve el boton "Probar", pero aún no está activo.
-* Se elimina el checkBox "Abrir al conectar"
-* Se agrega campos de conexión a ConexACad().
+Por Tito Hinostroza 20/09/2014
 
 Descripción
 ===========
