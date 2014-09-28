@@ -4,9 +4,10 @@ SqlPlusConsole 0.4b
 Librería en Lazarus, para crear conexiones a una base de datos en Oracle, usando el cliente SQLplus.
 
 Esta librería tiene las siguientes dependencias: 
-Librería UnTerminal: (https://github.com/t-edson/UnTerminal)
-Librería ConfigFrame: (https://github.com/t-edson/ConfigFrame)
-Librería MisUtils: (https://github.com/t-edson/MisUtils)
+
+* Librería UnTerminal: (https://github.com/t-edson/UnTerminal)
+* Librería ConfigFrame: (https://github.com/t-edson/ConfigFrame)
+* Librería MisUtils: (https://github.com/t-edson/MisUtils)
 
 Por lo tanto es necesario tener estas librería disponibles.
 
