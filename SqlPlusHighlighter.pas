@@ -146,6 +146,7 @@ begin
   AddAttribute(fAtriEncab);
 
   CreaTablaDeMetodos;  //Construye tabla de métodos
+  detecPrompt:=true;   //por defecto
 end;
 
 procedure TSQLplusHighligh.CreaTablaDeMetodos;
@@ -292,7 +293,8 @@ begin
        fTokenID := tkMensaje;  //de tipo directorio
        exit;
     end else if AnsiStartsStr('ERROR at ', linAct) or
-       AnsiStartsStr('SP2-0', linAct) then begin //un listado común de archivos tiene al menos este tamaño
+       AnsiStartsStr('SP2-0', linAct) or
+       AnsiStartsStr('ORA-1', linAct) then begin //mensajes de error
        //es listado detallado de un directorio
        posFin := length(linAct);
        fTokenID := tkError;  //de tipo directorio

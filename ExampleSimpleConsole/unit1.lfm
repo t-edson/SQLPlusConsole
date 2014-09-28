@@ -962,6 +962,7 @@ object Form1: TForm1
     MouseTextActions = <>
     MouseSelActions = <>
     VisibleSpecialChars = [vscSpace, vscTabAtLast]
+    ReadOnly = True
     SelectedColor.FrameEdges = sfeAround
     SelectedColor.BackPriority = 50
     SelectedColor.ForePriority = 50

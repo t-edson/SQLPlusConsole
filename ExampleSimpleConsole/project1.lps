@@ -4,7 +4,7 @@
     <PathDelim Value="\"/>
     <Version Value="9"/>
     <BuildModes Active="Default"/>
-    <Units Count="7">
+    <Units Count="9">
       <Unit0>
         <Filename Value="project1.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -12,7 +12,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="1" Y="21"/>
-        <UsageCount Value="33"/>
+        <UsageCount Value="36"/>
       </Unit0>
       <Unit1>
         <Filename Value="unit1.pas"/>
@@ -24,9 +24,9 @@
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="65"/>
-        <CursorPos X="14" Y="84"/>
-        <UsageCount Value="33"/>
+        <TopLine Value="13"/>
+        <CursorPos X="29" Y="26"/>
+        <UsageCount Value="36"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit1>
@@ -39,9 +39,9 @@
         <UnitName Value="FormConfig"/>
         <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="30"/>
+        <TopLine Value="32"/>
         <CursorPos X="32" Y="64"/>
-        <UsageCount Value="33"/>
+        <UsageCount Value="36"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit2>
@@ -49,9 +49,9 @@
         <Filename Value="..\SqlPlusConsole.pas"/>
         <UnitName Value="SQLPlusConsole"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="352"/>
-        <CursorPos X="1" Y="384"/>
-        <UsageCount Value="9"/>
+        <TopLine Value="52"/>
+        <CursorPos X="29" Y="73"/>
+        <UsageCount Value="10"/>
       </Unit3>
       <Unit4>
         <Filename Value="..\FrameCfgConOra.pas"/>
@@ -60,8 +60,8 @@
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="FrameCfgConOra"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="192"/>
-        <CursorPos X="30" Y="538"/>
+        <TopLine Value="33"/>
+        <CursorPos X="9" Y="44"/>
         <UsageCount Value="16"/>
         <Bookmarks Count="2">
           <Item0 X="1" Y="238" ID="2"/>
@@ -84,11 +84,27 @@
         <CursorPos X="1" Y="233"/>
         <UsageCount Value="13"/>
       </Unit6>
+      <Unit7>
+        <Filename Value="C:\lazarus\components\synedit\synedithighlighterfoldbase.pas"/>
+        <UnitName Value="SynEditHighlighterFoldBase"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="737"/>
+        <CursorPos X="3" Y="740"/>
+        <UsageCount Value="10"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="..\SqlPlusHighlighter.pas"/>
+        <UnitName Value="SqlPlusHighlighter"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="134"/>
+        <CursorPos X="3" Y="137"/>
+        <UsageCount Value="10"/>
+      </Unit8>
     </Units>
     <General>
       <ActiveWindowIndexAtStart Value="0"/>
     </General>
-    <JumpHistory Count="5" HistoryIndex="4">
+    <JumpHistory Count="13" HistoryIndex="12">
       <Position1>
         <Filename Value="unit1.pas"/>
         <Caret Line="9" Column="56" TopLine="1"/>
@@ -109,6 +125,38 @@
         <Filename Value="unit1.pas"/>
         <Caret Line="64" Column="15" TopLine="47"/>
       </Position5>
+      <Position6>
+        <Filename Value="unit1.pas"/>
+        <Caret Line="46" Column="1" TopLine="29"/>
+      </Position6>
+      <Position7>
+        <Filename Value="unit1.pas"/>
+        <Caret Line="64" Column="42" TopLine="36"/>
+      </Position7>
+      <Position8>
+        <Filename Value="unit1.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position8>
+      <Position9>
+        <Filename Value="unit1.pas"/>
+        <Caret Line="24" Column="10" TopLine="1"/>
+      </Position9>
+      <Position10>
+        <Filename Value="unit1.pas"/>
+        <Caret Line="53" Column="14" TopLine="41"/>
+      </Position10>
+      <Position11>
+        <Filename Value="unit1.pas"/>
+        <Caret Line="61" Column="6" TopLine="37"/>
+      </Position11>
+      <Position12>
+        <Filename Value="unit1.pas"/>
+        <Caret Line="36" Column="31" TopLine="20"/>
+      </Position12>
+      <Position13>
+        <Filename Value="unit1.pas"/>
+        <Caret Line="67" Column="10" TopLine="61"/>
+      </Position13>
     </JumpHistory>
   </ProjectSession>
   <EditorMacros Count="0"/>

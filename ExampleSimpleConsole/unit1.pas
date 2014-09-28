@@ -5,8 +5,8 @@ unit Unit1;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, SynEdit, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, ComCtrls, Menus, SQLPlusConsole, FormConfig;
+  Classes, SynEdit, Forms, ExtCtrls, ComCtrls, Menus,
+  SQLPlusConsole, SqlPlusHighlighter, FormConfig;
 
 type
 
@@ -33,6 +33,7 @@ type
       const Rect: TRect);
   private
     { private declarations }
+    hlSal     : TSQLplusHighligh;
   public
     sqlCon: TSQLPlusCon;
   end;
@@ -48,20 +49,22 @@ implementation
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
+  hlSal  := TSQLplusHighligh.Create(self);   //crea resaltador
   sqlCon:= TSQLPlusCon.Create;
   sqlCon.sendCRLF:=true;
-
+  edSal.Highlighter := hlSal;   //fija resaltador
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
   sqlCon.Destroy;
+  hlSal.Destroy;
 end;
 
 procedure TForm1.FormShow(Sender: TObject);
 begin
   Config.Initiate(StatusBar1.Panels[0]);
-  sqlCon.Init(StatusBar1.Panels[1], edSal,Config.fcConOra);
+  sqlCon.Init(StatusBar1.Panels[1], edSal, Config.fcConOra);
 end;
 
 procedure TForm1.MenuItem1Click(Sender: TObject);  //config
