@@ -1,5 +1,10 @@
-{Resaltador de sintaxis sencillo usado para la salida de datos del SQLPLus
- Se basa en el ejemplo de resaltador con plegado publicado en "La Biblia del SynEdit"
+{
+SqlPlusHighlighter
+==================
+Modificado por Tito Hinostroza  02/10/2014
+
+Resaltador de sintaxis sencillo usado para la salida de datos del SQLPLus
+Se basa en el ejemplo de resaltador con plegado publicado en "La Biblia del SynEdit"
 
                                      Por Tito Hinostroza 27/06/2014
 }
@@ -8,6 +13,7 @@ unit SqlPlusHighlighter;
 interface
 uses
   Classes, SysUtils, Graphics, SynEditHighlighter, SynEditHighlighterFoldBase,
+  LCLProc,
   strutils;
 type
   {Clase para la creación de un resaltador}
@@ -104,7 +110,7 @@ begin
   inherited Create(AOwner);
   //atributo de identificadores
   fAtriIdentif  := TSynHighlighterAttributes.Create('Identif');
-  fAtriIdentif.Foreground := clWhite;    //color de letra
+  fAtriIdentif.Foreground := clBlack;    //color de letra
   AddAttribute(fAtriIdentif);
   //atributo de comentarios
   fAtriComent  := TSynHighlighterAttributes.Create('Comment');
@@ -220,8 +226,6 @@ begin
   fStringLen := posFin - posIni - 1;  //calcula tamaño - 1
   fToIdent := linAct + posIni + 1;  //puntero al identificador + 1
   if KeyComp('lias')     then fTokenID := tkKey else
-  if KeyComp('propos')     then fTokenID := tkKey else
-  if KeyComp('wk')     then fTokenID := tkKey else
     fTokenID := tkIndentif;  //identificador común
 end;
 procedure TSQLplusHighligh.ProcB;
@@ -284,27 +288,29 @@ begin
         exit;
       end;
     end;
-    //verifica si es listado detallado de arcchivos "ls -l"
 //    tmp := copy(linAct,1,3);
     if AnsiStartsStr('SQL*Plus: ', linAct) or
-       AnsiStartsStr('Copyright (c)', linAct) then begin //un listado común de archivos tiene al menos este tamaño
-       //es listado detallado de un directorio
+       AnsiStartsStr('Copyright (c)', linAct) then begin
        posFin := length(linAct);
        fTokenID := tkMensaje;  //de tipo directorio
        exit;
     end else if AnsiStartsStr('ERROR at ', linAct) or
        AnsiStartsStr('SP2-0', linAct) or
        AnsiStartsStr('ORA-1', linAct) then begin //mensajes de error
-       //es listado detallado de un directorio
        posFin := length(linAct);
        fTokenID := tkError;  //de tipo directorio
        exit;
-     end else if (CurrentLines<>nil) and
-          AnsiStartsStr('--', linAct) then begin //un listado común de archivos tiene al menos este tamaño
-        //es listado detallado de un directorio
+    end else if (CurrentLines<>nil) and  //hay editor asignado
+        (LineIndex<CurrentLines.Count-1) and //hay línea siguiente
+          AnsiStartsStr('--', CurrentLines[LineIndex+1]) then begin  //sigue la línea de marcas
         posFin := length(linAct);
         fTokenID := tkEncab;  //de tipo encabezado
         exit;
+    end else if AnsiStartsStr('--', linAct) then begin //es la línea de marcas
+       //es listado detallado de un directorio
+       posFin := length(linAct);
+       fTokenID := tkEncab;  //de tipo encabezado
+       exit;
     end;
   end;
   //caso normal
@@ -314,6 +320,8 @@ begin
       fRange := rsUnknown;
       fProcTable[linAct[PosFin]]; //Se ejecuta la función que corresponda.
 //  end;
+{if GetTokenAttribute = nil then debugln('nil   :' + GetToken);
+else debugln(GetTokenAttribute.Name + ':' + GetToken);}
 end;
 
 function TSQLplusHighligh.GetEol: Boolean;
@@ -333,7 +341,6 @@ function TSQLplusHighligh.GetTokenAttribute: TSynHighlighterAttributes;
 //Devuelve información sobre el token actual
 begin
   case fTokenID of
-    tkIndentif: Result := fAtriIdentif;
     tkComment : Result := fAtriComent;
     tkKey     : Result := fAtriClave;
     tkSpace   : Result := fAtriEspac;
@@ -342,9 +349,11 @@ begin
     tkMensaje : Result := fAtriMensaje;
     tkError   : Result := fAtriError;
     tkEncab   : Result := fAtriEncab;
+//    tkIndentif: Result := fAtriIdentif;  devolverá NIL, y tomará el color de la propiedad "Font.Color"
     else
       Result := nil;  //tkUnknown, tkNull
   end;
+
 end;
 function TSQLplusHighligh.GetDefaultAttribute(Index: integer): TSynHighlighterAttributes;
 {Este método es llamado por la clase "TSynCustomHighlighter", cuando se accede a alguna de
@@ -365,8 +374,11 @@ end;
  llaves, corchetes, parentesis y comillas. No son cruciales para el coloreado
  de tokens, pero deben responder bien.}
 function TSQLplusHighligh.GetToken: String;
+var
+  Len: LongInt;
 begin
-  Result := '';
+  Len := posFin - posIni;
+  SetString(Result, (linAct + posIni), Len);
 end;
 function TSQLplusHighligh.GetTokenPos: Integer;
 begin

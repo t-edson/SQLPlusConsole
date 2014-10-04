@@ -3,12 +3,18 @@
 Por Tito Hinostroza 21/9/2014
 * Se cambia nombre de EnviarSQL() a SendSQL().
 * Se cambia nombre de Iniciar() a Init().
+* Se cambia el nombre de los parámetros de Init()
+* Se incluye a la unidad MisUtils, para las opciones de traducción.
+* Se incluye a la unidad SqlPlusHighlighter,  y se incluye un resaltador en TSQLPlusCon,
+para poder usarla en la salida.
+* Se crean los métodos InitOut() y DisableOut() para poder controlar el editor de salida.
 
 Descripción
 ===========
 Unidad para manejar el proceso SQLPLUS, como un proceso en una consola, usando la
-unidad "UnTerminal", para controlas la entrada/salida. Espera trabajar con un editor
-de tipo SynEdit. Por lo tanto, intercepta los eventos de refresco para un editor.
+unidad "UnTerminal", para controlar la entrada/salida. Espera trabajar con un editor
+de tipo SynEdit como visor de datos de salida. Por lo tanto, intercepta los eventos
+de refresco para un editor, que ofrece la unidad UnTerminal.
 También intercepta a los eventos: OnFirstReady(), OnReadData(), OnGetPrompt().
 Agrega además los eventos:
 -OnQueryEnd(), para indicar que terminó la consulta.
@@ -21,8 +27,9 @@ unit SQLPlusConsole;
 {$mode objfpc}{$H+}
 interface
 uses
-  Classes, SysUtils, SynEdit, ComCtrls, strutils, Dialogs, LCLProc, math,
-  TermVT, UnTerminal, FrameCfgConOra;
+  Classes, SysUtils, LCLProc, LCLType, Controls, ComCtrls, strutils, Dialogs,
+  Graphics, Math, SynEdit, SynEditKeyCmds,
+  MisUtils, TermVT, UnTerminal, FrameCfgConOra, SqlPlusHighlighter;
 
 const
   TXT_MJE_ERROR = 'ERROR at line ';  //texto indicativo de error con posición
@@ -39,6 +46,10 @@ type
   { TSQLPlusCon }
 
   TSQLPlusCon = class(TConsoleProc)
+    procedure ed_CommandProcessed(Sender: TObject;
+      var Command: TSynEditorCommand; var AChar: TUTF8Char; Data: pointer);
+    procedure ed_MouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
   private
     fcConOra   : TfraCfgConOra;   //referencia a Frame d configuración.
     FmaxLinTer : integer;  //cantidad máxima de líneas que debe almacenar el terminal
@@ -64,16 +75,22 @@ type
     HayError   : boolean;   //Indica que se detectó un error en la última exploración
     cadError   : string;    //guarda el mensaje de error
     pErr       : TPoint;    //posición del error;
+    outHL      : TSQLplusHighligh;  //Resaltador de salida
     OnQueryEnd : procedure of object;
     OnErrorConx: procedure of object;
     property maxLinTer: integer read FmaxLinTer write SetmaxLinTer;
     procedure Open;        //inicia proceso
     function Closed: boolean;
-    procedure Init(PanControl: TStatusPanel; ed0: TSynEdit;
+    procedure Init(ConnectStatus: TStatusPanel; OutEdit: TSynEdit;
       fcConOra0: TfraCfgConOra);
+    //manejo del editor de salida
+    procedure InitOut(CursorPan: TStatusPanel; Highlight: boolean = true);
+    procedure DisableOut;
     procedure SendSQL(txt: string);  //Envía consulta al SQLPLUS
     procedure ClearScreen;
+    procedure SetLanguage(lang: string);
     constructor Create;  //Constructor
+    destructor Destroy; override;
   end;
 
 implementation
@@ -83,15 +100,15 @@ const
 
 { TSQLPlusCon }
 
-procedure TSQLPlusCon.Init(PanControl: TStatusPanel; ed0: TSynEdit; fcConOra0: TfraCfgConOra);
+procedure TSQLPlusCon.Init(ConnectStatus: TStatusPanel; OutEdit: TSynEdit; fcConOra0: TfraCfgConOra);
 //Configura la conexión, fijando el panel de estado, editor para mostrar la salida, y el
 //frame con las conexiónes.
 begin
-  panel := PanControl;
+  panel := ConnectStatus;
   if panel<> nil then
     panel.Style:=psOwnerDraw;  //configura panel para dibujarse por evento
-  if ed0= nil then exit;
-  ed := ed0;
+  if OutEdit= nil then exit;
+  ed := OutEdit;
   fcConOra := fcConOra0;  //guarda referecnia
   OnInitScreen:=@procInitScreen;
   OnRefreshLine:=@procRefreshLine;
@@ -104,6 +121,51 @@ begin
 //  OnLineCompleted:=@SQLPlusConLineCompleted;
   ClearOnOpen:=false;  //No limpiaremos en cada conexión
   ClearScreen;   //limpiamos solo ahora
+end;
+//manejo del editor de salida
+procedure TSQLPlusCon.InitOut(CursorPan: TStatusPanel; Highlight: boolean);
+//Configura al editor de salida, con una configuración predeterminada simple.
+//Debe llamarse después de llamar a Init().
+begin
+  curPanel := CursorPan;
+  //configura editor de salida
+  if ed = nil then exit;
+  if Highlight then ed.Highlighter := outHL;
+  outHL.detecPrompt:=true;
+  ed.ReadOnly:=true;   //no se espera modificar la salida
+//  InicEditorC1(ed);  requeriría SynFacilUtils
+  ed.Options := ed.Options - [eoKeepCaretX];  //Quita límite horizontal al cursor
+  //para actualizar posición de cursor
+  ed.OnMouseDown:=@ed_MouseDown;
+  ed.OnCommandProcessed:=@ed_CommandProcessed;
+ //para actualizar posición de cursor
+end;
+procedure TSQLPlusCon.DisableOut;
+//Colorea el editor de salida de modo que de la apariencia de que está desconectado
+var
+  colFon: TColor;
+  colTxt: TColor;
+begin
+  //lo pinta para que parezca deshabilitado
+  colFon := clMenu;
+  colTxt := TColor($909090);
+  ed.Color:=colFon;
+  ed.Gutter.Color:=colFon;  //color de fondo del panel
+  ed.Gutter.Parts[1].MarkupInfo.Background:=colFon; //fondo del núemro de línea
+  ed.Gutter.Parts[1].MarkupInfo.Foreground:=colTxt; //texto del número de línea
+  ed.Font.Color:=colTxt;      //color de texto normal
+end;
+procedure TSQLPlusCon.ed_CommandProcessed(Sender: TObject;
+  var Command: TSynEditorCommand; var AChar: TUTF8Char; Data: pointer);
+begin
+  if curPanel = nil then exit;
+  curPanel.Text:= dic('fil=%d, col=%d',[ed.CaretY, ed.CaretX]);
+end;
+procedure TSQLPlusCon.ed_MouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if curPanel = nil then exit;
+  curPanel.Text:= dic('fil=%d, col=%d',[ed.CaretY, ed.CaretX]);
 end;
 
 procedure TSQLPlusCon.SendSQL(txt: string);
@@ -129,6 +191,7 @@ begin
   ed.ClearAll;
   ClearTerminal;  //generará el evento OnInitScreen()
 end;
+
 procedure TSQLPlusCon.BuscarErrorEnLineas;
 //Busca en las últimas líneas, para ver si hay un mensaje de error
 //Solo explora desde la posición del prompt anterior, o desde que se inicia
@@ -240,6 +303,7 @@ constructor TSQLPlusCon.Create;
 //"PanControl" es el panel en donde se indicará el estado de la conexión
 begin
   inherited Create(nil);
+  outHL := TSQLplusHighligh.Create(nil);
   curSigPrm := true;
   FmaxLinTer := 10000;   //líneas a almacenar
   self.TerminalWidth:=10000;  //para soportar muchas columnas
@@ -251,6 +315,11 @@ begin
   self.promptFin:='';
   self.promptMatch:=prmAtEnd;
 end;
+destructor TSQLPlusCon.Destroy;
+begin
+  outHL.Destroy;
+end;
+
 procedure TSQLPlusCon.PosicionarCursor(HeightScr: integer);
 //Coloca el cursor del editor, en la misma línea que tiene el cursor del
 //terminal VT100 virtual.
@@ -359,7 +428,8 @@ begin
 end;
 
 procedure TSQLPlusCon.Open;
-//Abre una conexión al SQLPLUS, con la conexión actual, definida en Config.fcConOra
+//Abre una conexión al SQLPLUS, con la conexión actual. La conexión actual se lee
+//de 'fcConOra', que se debe haber definido con Init().
 var
   con: TConOra;
 begin
@@ -373,7 +443,7 @@ begin
   con := fcConOra.ConexActual;  //lee conexión
   if con.Nombre='' then begin
     HayError :=true;
-    cadError := 'No se ha especificado la conexión actual.';
+    cadError := dic('No se ha especificado la conexión actual.');
     exit;
   end;
   self.progPath:=con.RutSql;
@@ -385,6 +455,19 @@ function TSQLPlusCon.Closed: boolean;
 //Indica si la conexión está cerrada
 begin
   Result := (state = ECO_STOPPED);
+end;
+
+procedure TSQLPlusCon.SetLanguage(lang: string);
+begin
+  case lowerCase(lang) of
+  'es': begin
+     dicClear;   //lso mensajes están en español
+    end;
+  'en': begin
+      dicSet('fil=%d, col=%d','row=%d, col=%d');
+      dicSet('No se ha especificado la conexión actual.','Current connection not specified.')
+    end;
+  end;
 end;
 
 end.
