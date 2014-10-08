@@ -1,6 +1,6 @@
 {
-FrameCfgConOra 0.4b
-===================
+FrameCfgConOra 0.4
+==================
 Por Tito Hinostroza 20/09/2014
 
 Descripción

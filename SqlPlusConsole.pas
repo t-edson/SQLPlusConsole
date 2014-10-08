@@ -1,4 +1,4 @@
-{SQLPlusConsole 0.4b
+{SQLPlusConsole 0.4
 ===================
 Por Tito Hinostroza 21/9/2014
 * Se cambia nombre de EnviarSQL() a SendSQL().
@@ -8,6 +8,8 @@ Por Tito Hinostroza 21/9/2014
 * Se incluye a la unidad SqlPlusHighlighter,  y se incluye un resaltador en TSQLPlusCon,
 para poder usarla en la salida.
 * Se crean los métodos InitOut() y DisableOut() para poder controlar el editor de salida.
+* Se modifica BuscarErrorEnLineas(), para que reconozca mejor cuando se ha iniciado una
+nueva conexión.
 
 Descripción
 ===========
@@ -196,7 +198,7 @@ procedure TSQLPlusCon.BuscarErrorEnLineas;
 //Busca en las últimas líneas, para ver si hay un mensaje de error
 //Solo explora desde la posición del prompt anterior, o desde que se inicia
 //la sesión.
-//Actualiza las banderas "HayDesco", "HayError" y "cadError"
+//Actualiza las banderas "HayError" y "cadError"
 var
   i,j   : integer;
   pmsj  : integer;
@@ -249,19 +251,7 @@ begin
          if AnsiEndsStr('*', linea) then pErr.x := length(linea);
        end;
        break;   //sale
-    end else if AnsiStartsStr('Disconnected from Oracle', linea) then begin
-      //se desconectó, ya no vale seguir buscando atrás
-//      HayDesco := true;
-      break;
-    end else if AnsiStartsStr('SQL*Plus: Release', linea) then begin
-      //se inició una nueva conexión, ya no vale seguir buscando atrás
-//      HayDesco := true;
-      break;
-    end;
-  end;
-  //Busca mensajes de tipo SP2-????
-  for i:= term.CurY downto max(1,linSqlT) do begin  //busca las últimas líneas
-    if HaySP2(i)>0 then begin
+    end else if HaySP2(i)>0 then begin //Busca mensajes de tipo SP2-????
        //hay error. En este caso, pueden haber mensajes anteriores
        j := i;   //toma índice
        //busca si hay anteriores
@@ -296,6 +286,12 @@ begin
          end;
        end;
        break;   //sale
+    end else if AnsiStartsStr('Disconnected from Oracle', linea) then begin
+      //se desconectó, ya no vale seguir buscando atrás
+      break;
+    end else if AnsiStartsStr('SQL*Plus: Release', linea) then begin
+      //se inició una nueva conexión, ya no vale seguir buscando atrás
+      break;
     end;
   end;
 end;
@@ -318,6 +314,7 @@ end;
 destructor TSQLPlusCon.Destroy;
 begin
   outHL.Destroy;
+  inherited;
 end;
 
 procedure TSQLPlusCon.PosicionarCursor(HeightScr: integer);
@@ -353,11 +350,12 @@ begin
   BuscarErrorEnLineas;  //busca si hubo algún mesaje de error
   if HayError then begin
     if pErr.y<>-1 then begin //hay información de posición
-      ShowMessage(cadError + #13#10' (Línea:' + IntToStr(pErr.y) + ', Columna:' +
-                          IntToStr(pErr.x)+')');
-//      edSQL.CaretXY:=pErr;  //ubica
+      { TODO : No debería mostrar mensajes de error aquí, solo actualizar cadError.}
+      MsgErr(cadError + #13#10 + dic('(Línea: %d, Columna: %d)', [pErr.y, pErr.x]));
+      //El número de línea y columna, está referido a la consulta actual, no a todo el texto.
+//      edSQL.CaretXY:=pErr;  //ubica.
     end else begin
-      ShowMessage(cadError);
+      MsgErr(cadError);
     end;
   end;
   if OnQueryEnd<>nil then OnQueryEnd;
@@ -461,9 +459,10 @@ procedure TSQLPlusCon.SetLanguage(lang: string);
 begin
   case lowerCase(lang) of
   'es': begin
-     dicClear;   //lso mensajes están en español
+     dicClear;   //los mensajes están en español
     end;
   'en': begin
+      dicSet('(Línea: %d, Columna: %d)','(Row: %d, Column: %d)');
       dicSet('fil=%d, col=%d','row=%d, col=%d');
       dicSet('No se ha especificado la conexión actual.','Current connection not specified.')
     end;

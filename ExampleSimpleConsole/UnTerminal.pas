@@ -64,6 +64,7 @@ TEvAddNewLine   = procedure(HeightScr: integer) of object;
 TConsoleProc = class
 protected
   panel     : TStatusPanel; //referencia a panel para nostrar estado
+  curPanel  : TStatusPanel; //para nostrar posición de cursor de editor de salida
   lastState : TEstadoCon;  //Estado anterior
   txtState  : string;      //Cadena que describe el estado actual de la conexión
   clock     : TTimer;     //temporizador para leer salida del proceso
@@ -539,7 +540,7 @@ begin
   generaba el evento de llegada de prompt dos veces (tal vez más) en una misma línea}
   if OnChkForPrompt <> nil then begin
     //Hay rutina de verificación externa
-    HayPrompt:=OnChkForPrompt(term.buf[term.CurY]);
+    HayPrompt := OnChkForPrompt(term.buf[term.CurY]);
   end else begin
     if EsPrompt(term.buf[term.CurY]) then
       HayPrompt:=true;
@@ -588,10 +589,17 @@ end;
 procedure TConsoleProc.Send(const txt: string);
 {Envía una cadena como como flujo de entrada al proceso.
 Es importante agregar el caracter #13#10 al final. De otra forma no se leerá el "stdin"}
+var
+  n: Integer;
 begin
   if p = NIL then exit;
   if not p.Running then exit;
+n := length(txt);
+debugln(IntToStr(n));
+  p.PipeBufferSize:=20000;
+  p.Input.Size:=20000;
   p.Input.Write(txt[1], length(txt));  //pasa el origen de los datos
+
   //para que se genere un cambio de State aunque el comando sea muy corto
   if State = ECO_READY then ChangeState(ECO_BUSY);
 end;

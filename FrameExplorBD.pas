@@ -1,5 +1,5 @@
-{FrameExplorBD 0.4b
-===================
+{FrameExplorBD 0.4
+==================
 Por Tito Hinostroza 21/9/2014
 * Se cambia el comportamiento de los objetos Vista en el explorador, para que se
 muestren de forma similar a una tabla, crando dos nodos por cada vista (Columnas y Código).

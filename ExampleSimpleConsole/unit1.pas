@@ -31,9 +31,6 @@ type
     procedure MenuItem4Click(Sender: TObject);
     procedure StatusBar1DrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
       const Rect: TRect);
-  private
-    { private declarations }
-    hlSal     : TSQLplusHighligh;
   public
     sqlCon: TSQLPlusCon;
   end;
@@ -49,22 +46,20 @@ implementation
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
-  hlSal  := TSQLplusHighligh.Create(self);   //crea resaltador
   sqlCon:= TSQLPlusCon.Create;
   sqlCon.sendCRLF:=true;
-  edSal.Highlighter := hlSal;   //fija resaltador
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
   sqlCon.Destroy;
-  hlSal.Destroy;
 end;
 
 procedure TForm1.FormShow(Sender: TObject);
 begin
   Config.Initiate(StatusBar1.Panels[0]);
   sqlCon.Init(StatusBar1.Panels[1], edSal, Config.fcConOra);
+  sqlCon.InitOut(nil);  //set highlighter for output
 end;
 
 procedure TForm1.MenuItem1Click(Sender: TObject);  //config
