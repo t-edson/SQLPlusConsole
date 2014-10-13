@@ -1,5 +1,5 @@
-SqlPlusConsole 0.4
-==================
+SqlPlusConsole 0.5b
+===================
 
 Librería en Lazarus, para crear conexiones a una base de datos en Oracle, usando el cliente SQLplus.
 

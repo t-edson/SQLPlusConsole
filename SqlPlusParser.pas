@@ -1,9 +1,11 @@
 {
 SQLPlusParser
 =============
-Por Tito Hinostroza  21/09/2014
-* Se modifica ExplorarLin(), para modularizar la parte de extracción de encabezados
-y hacerlo accesible al exterior.
+Por Tito Hinostroza  12/10/2014
+* Se agregan métodos y variables para la exploración de datos que estén en un
+TStringList.
+* Se crea el método CampoN().
+* Se reordena el código.
 
 Descripción
 ===========
@@ -27,7 +29,7 @@ BSS   COUNT(*)         <encabezado con nombres de campos>
 21 rows selected.      <opcional, Número de registros>
 
 También permite procesar los datos que se obtienen de conexiones usando la unidad
-"uConexOraSqlP"
+"SqlPlusConsole"
 }
 unit SQLPlusParser;
 
@@ -55,48 +57,62 @@ type
   public
     msjError: string;
     Enc     : TCamposSqlPlus; //encabezados
-    bolsa   : TStringList;    //bolsa para guardar un contenido
+    Titulo  : string;     //para determinar si se encontró título
+    bolsa   : TStringList;  //bolsa para guardar un contenido
     linEncab  : string;   //línea de encabezados
     linMarca  : string;   //línea de marcas
+    function Campo(n: integer; const cad: String): string;
+    function CampoN(n: integer; const cad: String):double;
+    //Funciones de exploración de línea
     procedure InicExplorac;
     function ExplorarLin(const cad: String): boolean;
     function ExplorarAcum(const cad: String): boolean;
     function ExplorarDelim(const cad: String; delim: string): boolean;
     function ExploraLinCamBas(const cad: String; nCampoBase: integer): boolean;
-    function Campo(n: integer; const cad: String): string;
+    //funciones de exploración en listas
+    function FinLee: boolean;
+    function LeeSig(var lin0: string): boolean;
+    procedure InicExplorList(lista: TStrings);
+    function LeeRegDeList(var lin: string): boolean;
     //funciones de archivo
     procedure LeeEncabezado(arc: string; CerrarArch: Boolean=True);
-    constructor Create;
-    destructor Destroy; override;
   private
     hayEncab  : boolean;  //para determinar si se encontró encabezado
-    linAnter  : string;   //línea anterior
     sinDatos  : boolean;
+    linAnter  : string;   //línea anterior
+    //para exploración de listas
+    l : Tstrings;
+    ie: integer;
+  public  //funciones de la clase
+    constructor Create;
+    destructor Destroy; override;
   end;
-procedure ExtraerCampos(const linMarca, linEncab: string; var campos: TCamposSqlPlus);
+procedure sqExtractColumns(const linMarca, linEncab: string; var campos: TCamposSqlPlus);
+function sqGetColTxt(const lin: string; const campos: TCamposSqlPlus;
+                           n: integer): string; inline;
 
 implementation
 //utilidades
-function Explode(delimiter:string; str:string; limit:integer=MaxInt):TStringDynArray;
+function Explode(delimiter:string; str:string):TStringDynArray;
 var
-  p,cc,dsize:integer;
+  p, n, dsize:integer;
 begin
-  cc := 0;
+  n := 0;
   dsize := length(delimiter);
-  while cc+1 < limit do begin
+  while true do begin
     p := pos(delimiter,str);
     if p > 0 then begin
-      inc(cc);
-      setlength(result,cc);
-      result[cc-1] := copy(str,1,p-1);
+      inc(n);
+      SetLength(Result,n);
+      Result[n-1] := copy(str,1,p-1);
       delete(str,1,p+dsize-1);
     end else break;
   end;
-  inc(cc);
-  setlength(result,cc);
-  result[cc-1] := str;
+  inc(n);
+  SetLength(Result,n);
+  Result[n-1] := str;
 end;
-procedure ExtraerCampos(const linMarca, linEncab: string; var campos: TCamposSqlPlus);
+procedure sqExtractColumns(const linMarca, linEncab: string; var campos: TCamposSqlPlus);
 //Extrae los campos de un texto, revisando las líneas de encabezados y de marcas
 //SE expone esta función para que sirva para extraer campos, desde fuera.
 var
@@ -124,24 +140,44 @@ begin
   end;
 end;
 
-{ TConvSqlPlus }
-procedure TConvSqlPlus.InicExplorac;  //Inicia exploración
+function sqGetColTxt(const lin: string; const campos: TCamposSqlPlus;
+                           n: integer): string; inline;
+//Extrae el campo "n", de una línea de acuerdo a la información de "campos"
 begin
-  hayEncab := false;  //inicia badnera
-  setLength(Enc,0);  //iniica lista de campos
-  bolsa.Clear;       //limpia bolsa por si se necesita usarla
+  Result:= trim(copy(lin, campos[n].posIni,campos[n].nCar));
 end;
+
+{ TConvSqlPlus }
 function TConvSqlPlus.Campo(n: integer; const cad: String):string;
 //Devuelve el campo n-ésimo de la linea "cad". Debe llamarse cuando se ha
 //reconocido el encabezado
 begin
-  //observar que los campos de cdaena que incluyen espacios iniciales o finales
+  //observar que los campos de cadena que incluyen espacios iniciales o finales
   //aparcerán recortados.
   Result := Trim(Copy(cad,Enc[n].posIni,Enc[n].nCar));
 end;
+function TConvSqlPlus.CampoN(n: integer; const cad: String):double;
+//Devuelve el campo n-ésimo de la linea "cad". Devuelve en número.
+begin
+  Try
+    Result := StrToFloat(Campo(n, cad));
+  except
+    On E : Exception do
+      Result := 0;
+  end;
+end;
+//Funciones de exploración de línea
+procedure TConvSqlPlus.InicExplorac;  //Inicia exploración
+begin
+  hayEncab := false;  //inicia badnera
+  Titulo := '';    //inicia título
+  setLength(Enc,0);  //iniica lista de campos
+  bolsa.Clear;       //limpia bolsa por si se necesita usarla
+  linAnter := '';    //limpia
+end;
 function TConvSqlPlus.ExplorarLin(const cad: String):boolean;
 //Explora una línea de datos y extrae el encabezado y determina si la fila
-//ingresada es una fila de datos
+//ingresada es una fila de datos. De ser así devuelve TRUE.
 begin
   Result := false;
   if hayEncab then begin
@@ -154,9 +190,12 @@ begin
         AnsiEndsStr('rows selected.',cad) then exit;
     Result := true;    //se asume que si es
   end else begin
+    //aún no se ha encontrado el inicio del reporte
+    if AnsiStartsText('$TITULO', cad) then Titulo:=copy(cad,9,1000);
     //verifica si la fila indicada, contiene las marcas
     if (length(cad)>0) and (cad[1] = '-') and
-       (cad[length(cad)] = '-') then begin  //primer caracter de marcas
+       (cad[length(cad)] = '-') then begin  //primer y último caracter de marca
+      { TODO : Tal vez debería quitar los espacios finales de "cad" antes de ver el último caracter}
       //encontró línea de marcas
       linMarca := cad;
       //lee encabezados
@@ -167,20 +206,19 @@ begin
       end;
       hayEncab:=true;
       //extrae información de los encabezados
-      ExtraerCampos(linMarca, linEncab, Enc);
+      sqExtractColumns(linMarca, linEncab, Enc);
       exit;
     end;
   end;
+//  linAnter2 := linAnter;  nol lo usa
   linAnter := cad;
 end;
-
 function TConvSqlPlus.ExplorarAcum(const cad: String): boolean;
 //Explora al igual que ExplorarLin(), pero va acumulando las líneas de datos
 begin
   if ExplorarLin(cad) then
     bolsa.Add(cad);  //acumula
 end;
-
 function TConvSqlPlus.ExplorarDelim(const cad: String; delim: string): boolean;
 {Explora una línea de datos, buscando una línea especial (delimitador) para
 asumir que las líneas siguientes son el contenido, hasta encontrar nuevamente
@@ -211,7 +249,6 @@ begin
     if cad = delim then hayEncab:=true;
   end;
 end;
-
 function TConvSqlPlus.ExploraLinCamBas(const cad: String; nCampoBase: integer):boolean;
 {Similar a ExplorarLin() pero permite filtrar los campos que sean multilínea.
  Se le debe indicar una columna como referencia que siempre tenga algún valor, para
@@ -242,7 +279,78 @@ begin
   //debería ser fila de datos pero falta aplicar el filtro
   if campo(nCampoBase, cad)<> '' then Result := true;
 end;
+//funciones de exploración en listas
+function TConvSqlPlus.FinLee: boolean;  //indica cuando ya no hay líneas que leer de "ed"
+begin
+  Result := ie>=l.Count;
+end;
+function TConvSqlPlus.LeeSig(var lin0:string): boolean;
+//Lee la siguiente línea del editor "ed". La posición actual se guarda en "ie".
+//Si no hay más líneas, devuelve FALSE.
+begin
+  Result := true;   //por defecto
+  inc(ie);   //pasa al siguiente elemento
+  if FinLee then begin  //no hay más datos
+    lin0 := '';  //devuelve línea vacía
+    exit(false);
+  end;
+  lin0 := l[ie];   //lee línea
+end;
+procedure TConvSqlPlus.InicExplorList(lista: TStrings);
+begin
+  l := lista;  //guarda referecnia
+  ie := -1;    //inicia puntero
+  InicExplorac;  //prepara exploración
 
+end;
+function TConvSqlPlus.LeeRegDeList(var lin: string): boolean;
+//Lee un registro de la lista. Si no encuentra alguno, devuelve FALSE.
+begin
+  if Not hayEncab then begin  //es la primera lectura
+    //busca la primera fila con datos
+    LeeSig(lin);   //lee primero
+    while not FinLee and not ExplorarLin(lin) do begin
+      LeeSig(lin);  //lee siguiente
+    end;
+    if FinLee then exit(false); //no encontró
+    //encontró
+    Result := true
+  end else begin  //ya se ha encontrado un bloque de lectura
+    //lee siguiente
+    LeeSig(lin);
+    if FinLee then exit(false); //no encontró
+    if lin = '' then begin
+      //puede ser el fin del a página, pero dentro del mismo reporte
+      LeeSig(lin);   //ve al siguiente
+      if FinLee then exit(false); //no encontró
+      //verifica
+      if AnsiEndsStr('rows selected.',lin) or AnsiEndsStr('rows selected',lin) then begin
+        //definitivamente es el fin del reporte. Auqnue puede haber otro después
+//        hayEncab := false;  //prepara para siguiente exploración
+        exit(false)
+      end else if lin = linEncab then begin
+        //lo esperado en la continuación de un reporte
+        LeeSig(lin);   //ve al siguiente
+        if FinLee then exit(false); //no encontró
+        if lin = linMarca then begin
+          //lo esperado
+          LeeSig(lin);   //ve al siguiente
+          if FinLee then exit(false); //no encontró
+          Result := ExplorarLin(lin);  //lee dato
+        end else begin  //algo está mal
+          exit(false);  //se asuem que termina el reporte actual
+        end;
+      end else begin  //no es el mismo reporte
+        exit(false);  //se asuem que termina el reporte actual
+      end;
+    end else begin
+      //procesa línea
+      Result := ExplorarLin(lin);
+    end;
+  end;
+
+end;
+//funciones de archivo
 procedure TConvSqlPlus.LeeEncabezado(arc: string; CerrarArch: Boolean = True);
 {Analiza el archivo "arc" y extrae datos del encabezado en campo[].
 Opcionalmente puede dejar abierto el archivo. En este caso, se devuelve
@@ -329,7 +437,7 @@ begin
       msjError := 'Error leyendo archivo de datos.';
   end;
 end;
-
+//funciones de la clase
 constructor TConvSqlPlus.Create;
 begin
   bolsa := TStringList.Create;  //crea bolsa

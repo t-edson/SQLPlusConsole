@@ -1,15 +1,7 @@
-{SQLPlusConsole 0.4
-===================
-Por Tito Hinostroza 21/9/2014
-* Se cambia nombre de EnviarSQL() a SendSQL().
-* Se cambia nombre de Iniciar() a Init().
-* Se cambia el nombre de los parámetros de Init()
-* Se incluye a la unidad MisUtils, para las opciones de traducción.
-* Se incluye a la unidad SqlPlusHighlighter,  y se incluye un resaltador en TSQLPlusCon,
-para poder usarla en la salida.
-* Se crean los métodos InitOut() y DisableOut() para poder controlar el editor de salida.
-* Se modifica BuscarErrorEnLineas(), para que reconozca mejor cuando se ha iniciado una
-nueva conexión.
+{SQLPlusConsole 0.5b
+====================
+Por Tito Hinostroza 12/10/2014
+* Se cambia el nombre del método DisableOut() por DisableOutEdit().
 
 Descripción
 ===========
@@ -64,7 +56,6 @@ type
       HeightScr: integer);
     procedure SQLPlusConReadData(nDat: integer; pFinal: TPoint);
   protected
-    ed     : TSynEdit;   //editor donde se mostrará la salida
     linSql : integer;    //línea donde empieza la última consulta enviada
     linSqlT: integer;    //línea en el terminal donde empieza la consulta enviada
     procedure procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
@@ -80,6 +71,8 @@ type
     outHL      : TSQLplusHighligh;  //Resaltador de salida
     OnQueryEnd : procedure of object;
     OnErrorConx: procedure of object;
+    ed         : TSynEdit;   {Editor donde se mostrará la salida. Se hace público para)poder
+                              redireccionar la salida}
     property maxLinTer: integer read FmaxLinTer write SetmaxLinTer;
     procedure Open;        //inicia proceso
     function Closed: boolean;
@@ -87,7 +80,9 @@ type
       fcConOra0: TfraCfgConOra);
     //manejo del editor de salida
     procedure InitOut(CursorPan: TStatusPanel; Highlight: boolean = true);
-    procedure DisableOut;
+    procedure EnableOut;  //habilita salida al editor
+    procedure DisableOut; //deshabilita salida al editor
+    procedure DisableOutEdit;
     procedure SendSQL(txt: string);  //Envía consulta al SQLPLUS
     procedure ClearScreen;
     procedure SetLanguage(lang: string);
@@ -112,11 +107,7 @@ begin
   if OutEdit= nil then exit;
   ed := OutEdit;
   fcConOra := fcConOra0;  //guarda referecnia
-  OnInitScreen:=@procInitScreen;
-  OnRefreshLine:=@procRefreshLine;
-  OnRefreshLines:=@procRefreshLines;
-  OnAddLine:=@procAddLine;
-
+  EnableOut;   //habilita la salida al editor
   OnFirstReady:=@SQLPlusConFirstReady;
   OnGetPrompt:=@SQLPlusConGetPrompt;
   OnReadData:=@SQLPlusConReadData;
@@ -142,7 +133,22 @@ begin
   ed.OnCommandProcessed:=@ed_CommandProcessed;
  //para actualizar posición de cursor
 end;
+procedure TSQLPlusCon.EnableOut;
+begin
+  OnInitScreen:=@procInitScreen;
+  OnRefreshLine:=@procRefreshLine;
+  OnRefreshLines:=@procRefreshLines;
+  OnAddLine:=@procAddLine;
+end;
 procedure TSQLPlusCon.DisableOut;
+begin
+  OnInitScreen:=nil;
+  OnRefreshLine:=nil;
+  OnRefreshLines:=nil;
+  OnAddLine:=nil;
+end;
+
+procedure TSQLPlusCon.DisableOutEdit;
 //Colorea el editor de salida de modo que de la apariencia de que está desconectado
 var
   colFon: TColor;

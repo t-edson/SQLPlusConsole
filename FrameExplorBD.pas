@@ -1,15 +1,24 @@
-{FrameExplorBD 0.4
-==================
-Por Tito Hinostroza 21/9/2014
-* Se cambia el comportamiento de los objetos Vista en el explorador, para que se
-muestren de forma similar a una tabla, crando dos nodos por cada vista (Columnas y Código).
-* Se cambia el comportamiento para que las tablas y vistas no se abran al actualizarse.
-* Se compelta la definición del nombre del nodo en el método TBDNodo.nombre()
+{FrameExplorBD 0.5b
+===================
+Por Tito Hinostroza 11/10/2014
+* Se cambia el nombre de TEstadoNodo a TsqNodeStatus
+* Se cambia el nombre de TTipoNodo a TsqNodeType
+* Se cambia el nombre de TBDNodo.codigo a TBDNodo.source a TsqNodeType
+* Se modifica qLlegoPrompt(), para que agregue información adicional a los nodos
+de tipo Tabla y Vista.
+
 
 Descripción
 ===========
 Frame para implementar un explorador de objetos de una base de datos Oracle, usando
 la unidad SQLPlusConsole.
+Este explorador se implementa en un frame para poder isnertarlo fácilmente en un
+formulario cualquiera. Para mostrar el árbol, se usa un control TTreeView.
+Las acciones a realizar con los objetos del arbol, se deben implementar aparte. Esta
+unidad no incluye ningún menú contextual.
+Para el manejo de los nodos se usa la clase TBDnodo, en lugar del nodo TTreeNode, que
+usa comúnmente TTreeView.
+Los tipos de nodo que se muestran se identifican con el enumerado TsqNodeType.
 }
 unit FrameExplorBD;
 {$mode objfpc}{$H+}
@@ -23,58 +32,61 @@ uses
 
 type
   //Estados de nodo
-  TEstadoNodo = (enNoInic,    //Creado pero no actualizado
-                 enLeyendo,   //Esperando a que aparezcan resultados
-                 enEsperand,  //Están llegando datos
-                 enErrConex,  //hubo error de conexión
-                 enLleno,     //actualizado con datos
-                 enLlenoErr,  //actualizado con datos
-                 enSinDatos   //actualizado pero sin datos
-                 );
+  TsqNodeStatus = (enNoInic,    //Creado pero no actualizado
+                  enLeyendo,   //Esperando a que aparezcan resultados
+                  enEsperand,  //Están llegando datos
+                  enErrConex,  //hubo error de conexión
+                  enLleno,     //actualizado con datos
+                  enLlenoErr,  //actualizado con datos
+                  enSinDatos   //actualizado pero sin datos
+                  );
   //Tipos de nodo
-  TTipoNodo = (tnDescon,      //desconocido
+  TsqNodeType = (tnDescon,      //desconocido
 
-               tnListTablas,  //lista de tablas
-               tnTabla,       //tabla
-               tnTabListCampo, //lista de campo de tabla
-               tnTabCampo,     //campo de tabla
-               tnTabListIndic, //lista de índices de tabla
-               tnTabIndic,     //índice de tabla
+                tnListTablas,  //lista de tablas
+                tnTabla,       //tabla
+                tnTabListCampo, //lista de campo de tabla
+                tnTabCampo,     //campo de tabla
+                tnTabListIndic, //lista de índices de tabla
+                tnTabIndic,     //índice de tabla
 
-               tnListVistas,  //lista de vistas
-               tnVista,       //actualizado pero sin datos
-               tnVisListCampo,//Lista de campos de uan vista
-               tnVisCampo,    //campo de una vista
-               tnVisDefinic,  //Definición de la vista
+                tnListVistas,  //lista de vistas
+                tnVista,       //actualizado pero sin datos
+                tnVisListCampo,//Lista de campos de uan vista
+                tnVisCampo,    //campo de una vista
+                tnVisDefinic,  //Definición de la vista
 
-               tnListIndic,   //lista de índices
-               tnIndice,      //Índice
-               tnListProced,  //lista de procedimientos
-               tnProced,      //procedimiento
-               tnListFuncio,  //lista de funciones
-               tnFuncio,      //función
-               tnListDBlnks,  //lsita de DB links
-               tnDBlnk,       //DB link
-               tnListEsquem,  //lista de esquemas
-               tnEsquem,      //esquema
-               tnListUsuar,   //lista de usuarios
-               tnUsuar,       //usuario
-               tnListTabSpa,  //lista de Tablespaces
-               tnTabSpa       //Tablespace
-               );
+                tnListIndic,   //lista de índices
+                tnIndice,      //Índice
+                tnListProced,  //lista de procedimientos
+                tnProced,      //procedimiento
+                tnListFuncio,  //lista de funciones
+                tnFuncio,      //función
+                tnListDBlnks,  //lsita de DB links
+                tnDBlnk,       //DB link
+                tnListEsquem,  //lista de esquemas
+                tnEsquem,      //esquema
+                tnListUsuar,   //lista de usuarios
+                tnUsuar,       //usuario
+                tnListTabSpa,  //lista de Tablespaces
+                tnTabSpa       //Tablespace
+                );
 
   { TBDNodo }
 
   TBDNodo = class(TTreeNode)  //tipo de nodo personalizado
     private
     public
-      tipNod: TTipoNodo;    //tipo de nodo
-      estado: TEstadoNodo;  //estado del nodo
+      tipNod: TsqNodeType;    //tipo de nodo
+      estado: TsqNodeStatus;  //estado del nodo
       user  : string;       //para cuando el nodo pertenezca a un usuario (para el usuario actual, dejar en blanco)
       sql   : string;       //consulta ejecutada para llenar el nodo.
       dat   : string;       //fila de datos, cuando se haya definido que el nodo trabaje así
-      codigo: string;       //código fuente u otro contenido, en caso de que se aplique al nodo.
-      campos: TCamposSqlPlus;  //encabezados
+      source: string;       {Código fuente de procedimiento o función. Para los nodos Tabla y Vista, aquí
+                            se guarda información de los campos de la tabla y de los índices}
+      campos: TCamposSqlPlus;  {Encabezados de la información del nodo. Necesario para extraer la información
+                               del campo "dat" de los nodos hijos. En los nodos tabla y vista funcionan de modo
+                               distinto.}
 //      valores: TstringList;  //filas de datos
       function nombre: string; //devuelve el nombre del nodo
       function RutaEs(cad: string): boolean;  //compara con una ruta
@@ -111,13 +123,13 @@ type
     nodAct: TBDnodo;  //Nodo que recibe datos de la consulta actual
     procedure CreaEstructuraEsquema(nodEsq: TBDNodo; user: string);
     procedure FijarNodoActualSQL(Node: TTreeNode; ForzarExpan: boolean=true);
-    procedure FijEstadoNodo(n: TBDnodo; estado0: TEstadoNodo; ForzarExpan: boolean=
+    procedure FijEstadoNodo(n: TBDnodo; estado0: TsqNodeStatus; ForzarExpan: boolean=
       true);
     procedure InicEstructura;
     function LanzarSentencia(sql: string; Node: TTreeNode; ForzarExpan: boolean
       ): boolean;
-    procedure LLenarNodoActual(const cad: string; tipNod: TTipoNodo; sql: string);
-    function NuevoNodo(nod: TBDNodo; txt: String; tipNod0: TTipoNodo; idIco: integer
+    procedure LLenarNodoActual(const cad: string; tipNod: TsqNodeType; sql: string);
+    function NuevoNodo(nod: TBDNodo; txt: String; tipNod0: TsqNodeType; idIco: integer
       ): TBDnodo;
     procedure PonerMensNodo(nod: TBDnodo; n: integer);
     procedure PonerMensNodo(nod: TBDnodo; txt: string);
@@ -202,7 +214,7 @@ begin
     Result :=TBDnodo(TreeView1.Selected);
 end;
 
-procedure TfraExplorBD.FijEstadoNodo(n: TBDnodo; estado0: TEstadoNodo;
+procedure TfraExplorBD.FijEstadoNodo(n: TBDnodo; estado0: TsqNodeStatus;
                                 ForzarExpan: boolean = true);
 {Fija el estado de un nodo, configurando su contenido si es necesario. NO geenra el
  evento OnExpanding(). Si ForzarExpan = TRUE, fuerza la expansión de otra forma, mantiene
@@ -272,7 +284,7 @@ begin
   TreeView1.EndUpdate;           //termina actualización
   TreeView1.OnExpanding:=evTmp;  //restablece evento
 end;
-function TfraExplorBD.NuevoNodo(nod: TBDNodo; txt: String; tipNod0: TTipoNodo; idIco: integer): TBDnodo;
+function TfraExplorBD.NuevoNodo(nod: TBDNodo; txt: String; tipNod0: TsqNodeType; idIco: integer): TBDnodo;
 //Agrega un nodo a TreeView1, y coloca su índice de ícono. Devuelve un TBDNodo, en lugar
 //de TTreeNode. Pone además HasChildren en TRUE y pone su estado en "enNoInic".
 begin
@@ -427,24 +439,47 @@ begin
   msgErr('Error en cosulta: '+sqlCon.cadError);
 end;
 procedure TfraExplorBD.qLlegoPrompt;
+var
+  lin: String;
+  campos: TCamposSqlPlus;
+  index_name: String;
+  n: Integer;
 begin
 debugln('  llegPrompt');
   if nodAct = nil then exit;
   //hay un nodo esperando. Verifica si es mensaje de control
   case nodAct.estado of
-  enLeyendo: begin  //estaba esperando, pero no llegaron datos
+  enLeyendo: begin  //caso normal
       if sqlCon.HayError then  //hubo error
         FijEstadoNodo(nodAct,enLlenoErr)
       else begin  //sin errores
         if nodAct.tipNod in [tnProced,tnFuncio,tnVisDefinic] then begin
           //estos casos no se expanden
-          nodAct.codigo:=c.bolsa.Text;  //toma el resultado
+          nodAct.source:=c.bolsa.Text;  //toma el resultado
           FijEstadoNodo(nodAct,enLLeno);
           PonerMensNodo(nodAct, IntToStr(c.bolsa.Count)+' líneas.');
         end else if nodAct.tipNod in [tnTabla, tnVista] then begin
           //Las tablas y vistas, devuelven una cadena con descripción
-          nodAct.codigo:=c.linEncab + LineEnding + c.linMarca + LineEnding +
+          nodAct.source:=c.linEncab + LineEnding + c.linMarca + LineEnding +
                          c.bolsa.Text;  //resultado con encabezado
+          {------------------------------------------------------
+          Como ayuda adicional, y aprovechando 'nodAct.campos', está vacío para tablas y
+          vistas, escribe información de los campos de la tabla (no del texto). Este código
+          además sirve de ejemplo sobre cómo tratar la información proporcionada}
+          n:=0;
+          setlength(nodAct.campos,n);
+          sqExtractColumns(c.linMarca, c.linEncab, campos);  //extrae campos del texto
+          for lin in c.bolsa do begin
+            index_name := sqGetColTxt(lin, campos, 2);
+            if index_name='' then begin  //noe s índice
+              Inc(n);
+              setlength(nodAct.campos,n);
+              nodAct.campos[n-1].nombre:= sqGetColTxt(lin, campos, 0);
+              nodAct.campos[n-1].etiq:= nodAct.campos[n-1].nombre;
+              nodAct.campos[n-1].tipCam:= tcsCad; //no examina el texto
+            end;
+          end;
+          {------------------------------------------------------}
           FijEstadoNodo(nodAct,enLLeno,false);  //no expande
           PonerMensNodo(nodAct, IntToStr(c.bolsa.Count)+' líneas.');
         end else begin  //otros nodos
@@ -475,7 +510,7 @@ procedure TfraExplorBD.qLLegoLineasC(const txt: string);
 //Evento de llegada de datos. Llena al nodo actual
 var i: integer;
     cad: string;
-    tipNod: TTipoNodo;
+    tipNod: TsqNodeType;
     tmp : string;
 begin
   if nodAct = nil then exit;  //no hay nodo actual, se ignora.
@@ -563,7 +598,7 @@ begin
   end;
   TreeView1.EndUpdate;
 end;
-procedure TfraExplorBD.LLenarNodoActual(const cad: string; tipNod: TTipoNodo;
+procedure TfraExplorBD.LLenarNodoActual(const cad: string; tipNod: TsqNodeType;
                                         sql: string);
 //Llena el nodo actual el texto indicado. Usa el mismo ícono del nodo actual.
 var
