@@ -114,7 +114,7 @@ begin
 end;
 procedure sqExtractColumns(const linMarca, linEncab: string; var campos: TCamposSqlPlus);
 //Extrae los campos de un texto, revisando las líneas de encabezados y de marcas
-//SE expone esta función para que sirva para extraer campos, desde fuera.
+//Se expone esta función sirva también para usarse desde fuera de la unidad.
 var
   a   : TStringDynArray;
   x, i: Integer;
@@ -131,7 +131,7 @@ begin
 //      campos(i).ind := i;    //pone índice
     campos[i].posIni := X;
     campos[i].nCar := Length(a[i]);
-    //intenta deetrminar si es un campo numérico
+    //intenta determinar si es un campo numérico
     if tmp[1] = ' ' then  //campo alineado a la derecha
       campos[i].tipCam:=tcsNum   //se asume numérico
     else

@@ -5,6 +5,7 @@ object fraExplorBD: TfraExplorBD
   Width = 232
   ClientHeight = 430
   ClientWidth = 232
+  LCLVersion = '1.2.4.0'
   TabOrder = 0
   DesignLeft = 264
   DesignTop = 145
