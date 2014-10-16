@@ -144,7 +144,7 @@ var
 El objeto TConvSqlPlus, está preparado para manejar textos de tipo:
 
 El formato del archivo de texto es de campos de tamaño fijo y debe tener la forma:
-
+```
                        <línea en blanco>
 BSS   COUNT(*)         <encabezado con nombres de campos>
 --- ----------         <marcas con el tamaño de los campos>
@@ -158,6 +158,7 @@ BSS   COUNT(*)         <encabezado con nombres de campos>
 5          121         <fila de datos>
                        <línea en blanco>
 21 rows selected.      <opcional, Número de registros>
+```
 
 Esta es la salida típica del SQLPlus, como respuesta a una consulta de tipo SELECT.
 
