@@ -9,6 +9,11 @@ de tipo Tabla y Vista.
 * Se cambia nombre de qLLegoLineasC(), qErrorConex() y qLlegoPrompt().
 * Se incluye la unidad FrameSQLPlusOut, em la sección USES, para poder manejar
 la salida en un frame "TfraSQLPlusOut".
+* Se configura para poder usar la conexión del explorador, para lanzar otras
+consultas adicionales a las que lanza el mismo explorador.
+* Se modifica sqlCon_LlegoPrompt(), para que agregue información adicional a los
+nodos de tipo tabla o vista.
+* Se cambian lo síconos de procedimiento y función
 * Se reordena el código.
 
 Descripción
@@ -70,7 +75,9 @@ type
                 tnListUsuar,   //lista de usuarios
                 tnUsuar,       //usuario
                 tnListTabSpa,  //lista de Tablespaces
-                tnTabSpa       //Tablespace
+                tnTabSpa,       //Tablespace
+                tnListProces,  //lista de Procesos
+                tnProces       //Proceso
                 );
 
   { TBDNodo }
@@ -160,10 +167,12 @@ type
     procedure Iniciar(PanControl: TStatusPanel; fcConOra: TfraCfgConOra);  //inicia
     function NodSelec: TBDNodo;  //nodo selecionado
     function ActualizNodo(nod: TBDNodo): boolean;  //actualiza el contenido del nodo
-    procedure Conectar;
-    procedure Desconectar;
     procedure MostVentanaSesion;
     procedure OculVentanaSesion;
+    //reflejo de las funciones de sqlCon
+    procedure Open;
+    procedure Close;
+    function Closed: boolean;
     procedure DrawStatePanel(cv: TCanvas; const Rect: TRect);
     //Funciones para manejo de salida
     procedure SetOutput(edSal: TSynEdit; maxLinOut0: integer=100000);  //Fija un editro de salida
@@ -347,7 +356,7 @@ begin
   sqlCon.Init(PanControl, ventSes.edSal, fcConOra);
   if ConexIgual(cnx, fcConOra.ConexActual) then exit; //no hay cambio
   //Hubo cambio en la conexión
-  Desconectar;  //cierra conexión
+  Close;  //cierra conexión
   InicEstructura;
   cnx := fcConOra.ConexActual;  //guarda conexión
   OculVentanaSesion; //cierra ventana de sesión por si estaba abierta
@@ -435,6 +444,7 @@ begin
 ' FROM dba_free_space'#13#10+
 ' GROUP BY tablespace_name) b'#13#10+
 'WHERE a.tablespace_name = b.tablespace_name ORDER BY 1;';
+  nTabSpa := NuevoNodo(nil,'Procesos',tnListProces,0);
 
   TreeView1.EndUpdate;
 end;
@@ -589,6 +599,7 @@ debugln('  llegPrompt');
               Inc(n);
               setlength(nodAct.campos,n);
               nodAct.campos[n-1].nombre:= sqGetColTxt(lin, campos, 0);
+              nodAct.campos[n-1].tipOra:= sqGetColTxt(lin, campos, 1);
               nodAct.campos[n-1].etiq:= nodAct.campos[n-1].nombre;
               nodAct.campos[n-1].tipCam:= tcsCad; //no examina el texto
             end;
@@ -814,8 +825,8 @@ begin
     FijarNodoActualSQL(Node,ForzarExpan);
     txtSentEspera := sql;  //guarda sentencia
     sqlCon.OnQueryEnd:=@SentenciaEnEspera; //programa
-    Conectar;
-    if sqlCon.HayError then  //no se pudo conectar
+    Open;
+    if sqlCon.HayError then  //no se pudo Open
       FijEstadoNodo(nodAct, enErrConex);
   end;
   ECO_ERROR_CON: begin
@@ -826,12 +837,13 @@ begin
     FijarNodoActualSQL(Node,ForzarExpan);
     txtSentEspera := sql;  //guarda sentencia
     sqlCon.OnQueryEnd:=@SentenciaEnEspera; //programa
-    Conectar;
-    if sqlCon.HayError then  //no se pudo conectar
+    Open;
+    if sqlCon.HayError then  //no se pudo Open
       FijEstadoNodo(nodAct, enErrConex);
   end;
   ECO_READY: begin
     FijarNodoActualSQL(Node,ForzarExpan);
+    SetOutputInternal;   //por si esta´direccionado
     sqlCon.SendSQl(sql);
   end;
   end;
@@ -840,6 +852,7 @@ procedure TfraExplorBD.SentenciaEnEspera;
 //Lanza la sentencia que está en txtSentEspera
 begin
   if sqlCon.state <> ECO_READY then exit;
+  SetOutputInternal;   //por si esta´direccionado
   sqlCon.SendSQl(txtSentEspera);  //lanza consulta
   txtSentEspera := '';  //limpia
   sqlCon.OnQueryEnd:=@sqlCon_LlegoPrompt;  //restaura evento
@@ -853,7 +866,8 @@ procedure TfraExplorBD.OculVentanaSesion;  //cierra venatana
 begin
   ventSes.Hide;
 end;
-procedure TfraExplorBD.Conectar;  //Inicia la conexión
+//reflejo de las funciones de sqlCon
+procedure TfraExplorBD.Open;  //Inicia la conexión
 begin
   if sqlCon.state = ECO_READY then exit;
   sqlCon.Open;
@@ -863,7 +877,7 @@ begin
   end;
   if cnx.AbrSes then MostVentanaSesion; //debe abrir la ventana
 end;
-procedure TfraExplorBD.Desconectar;  //Desconecta
+procedure TfraExplorBD.Close;  //Desconecta
 begin
   if sqlCon.state = ECO_STOPPED then exit;
   //hay conexión
@@ -874,11 +888,16 @@ begin
     FijEstadoNodo(nodAct, enErrConex);
   end;
 end;
+function TfraExplorBD.Closed: boolean;  //Indica si la conexión está cerrada
+begin
+  Result := sqlCon.Closed;
+end;
 procedure TfraExplorBD.DrawStatePanel(cv: TCanvas; const Rect: TRect);
 //Procedimiento para dibuja en el panel de estado
 begin
   sqlCon.DrawStatePanel(cv, Rect);
 end;
+
 //Funciones para manejo de salida
 procedure TfraExplorBD.SetOutput(edSal: TSynEdit; maxLinOut0: integer = 100000);
 {Redirige la salida de texto (que normalmente se envía a su propio visor ventSes)

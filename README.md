@@ -327,6 +327,7 @@ De hecho, el panel de exploración, se puede usar como una conexión a la base d
 
     procedure Open;
     procedure Close;
+    function Closed: boolean;
     procedure DrawStatePanel(cv: TCanvas; const Rect: TRect);
 
 que son reflejo de las funciones del mismo nombre que tiene un objeto 'TSQLPlusCon'.
@@ -356,7 +357,7 @@ El parámentro 'CursorPan' es un panel de un TStatusBar, en donde se desea mostr
 
 Una vez direccionada la salida a un frame 'TfraSQLPlusOut', el panel de exploración gestionará la salida de datos, inclusive cuando el frame se encuentre en modo grilla.
 
-Una precacuión importante, para evitar que el panel de exploración falle en el refresco interno de uss nodos, es evitar enviar comandos que cambien las variables de entorno como LINESIZE, PAGESIZE, FEEDBACK, etc, porque podría evitar que el panel de exploración pueda reconocer correctamente el resultado de sus consultas. 
+Una precaución importante, para evitar que el panel de exploración falle en el refresco interno de sus nodos, es evitar enviar comandos que cambien las variables de entorno como LINESIZE, PAGESIZE, FEEDBACK, etc, porque podría evitar que el panel de exploración pueda reconocer correctamente el resultado de sus consultas. 
 
 El desarrollo del panel de exploración ha requerido un trabajo considerable, y se puede decir que es una de las partes principales de la librería.
 

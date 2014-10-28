@@ -6,6 +6,8 @@ Por Tito Hinostroza  12/10/2014
 TStringList.
 * Se crea el método CampoN().
 * Se reordena el código.
+* Se agrega el campo "tipOra" a TCampoSqlPlus, para que pueda servir a las rutinas
+que manejan tipo de datos de oracle.
 
 Descripción
 ===========
@@ -45,9 +47,11 @@ type
   TCampoSqlPlus = record
     nombre : string;   //nombre de campo
     etiq   : string;   //etiqueta del campo
-    posIni : integer;  //posición de inicio en el texto
+    posIni : integer;  //posición de inicio en el texto (en caracteres)
+    index  : integer;  //posición del campo dentro del encabezado (inicica en 1)
     nCar   : integer;  //tamaño del campo en el texto
     tipCam : TTipoCamSqlP;  //tipo del campo
+    tipOra : String;   //Tipo de dato según Oracle (Varchar2, Number, etc)
   end;
 
   TCamposSqlPlus = array of TCampoSqlPlus;
@@ -131,6 +135,7 @@ begin
 //      campos(i).ind := i;    //pone índice
     campos[i].posIni := X;
     campos[i].nCar := Length(a[i]);
+    campos[i].index:=i+1;
     //intenta determinar si es un campo numérico
     if tmp[1] = ' ' then  //campo alineado a la derecha
       campos[i].tipCam:=tcsNum   //se asume numérico

@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Grids, ComCtrls,
-  LCLType, SynEdit, SynEditKeyCmds,
+  LCLType, Buttons, SynEdit, SynEditKeyCmds,
   SynFacilUtils, UnTerminal, SQLPlusConsole, SQLPlusParser, MisUtils;
 
 type
@@ -18,10 +18,10 @@ type
   TfraSQLPlusOut = class(TFrame)
     gridSal: TStringGrid;
     edSal: TSynEdit;
+    ImageList1: TImageList;
     procedure FrameEnter(Sender: TObject);
     procedure sqlConLineCompleted(const lin: string);
   private
-    t: TConvSqlPlus;
     FMode: TSQLPlusOutMode;
     sqlCon: TSQLPlusCon;
     nFilas : Integer;   //contador para número de filas
@@ -39,6 +39,7 @@ type
     procedure SetTextMode;
     { private declarations }
   public
+    pars: TConvSqlPlus;   //conversor
     property Mode: TSQLPlusOutMode read FMode write SetMode;
     procedure Init(sqlCon0: TSQLPlusCon; CursorPan: TStatusPanel);
     procedure ClearGrid;
@@ -62,16 +63,16 @@ begin
 end;
 procedure TfraSQLPlusOut.LlenaFilas(lin: string; const n: integer);
 //Agrega y llena una fila de datos del StringGrid, usando "lin" y la estructura de
-//campos de t.Enc. "n" es el número de fila.
+//campos de par.Enc. "n" es el número de fila.
 var y,x: integer;
     tmp: string;
 begin
   gridSal.RowCount:=gridSal.RowCount+1;  //agrega fila
   y:= gridSal.RowCount-1;
   gridSal.Cells[0,y] := IntToStr(n);  //número de fila
-  for x:=0 to High(t.Enc) do begin
+  for x:=0 to High(pars.Enc) do begin
 //      tmp := Copy(nodHij.dat, nodPad.campos[x].posIni, nodPad.campos[x].nCar);
-    tmp := t.Campo(x, lin); //sqGetColTxt(lin, campos, x);
+    tmp := pars.Campo(x, lin); //sqGetColTxt(lin, campos, x);
     gridSal.Cells[x+1,y] := Trim(tmp);
   end;
 end;
@@ -83,25 +84,37 @@ begin
 end;
 
 procedure TfraSQLPlusOut.LLenaEncabezGrilla;
-//Llena el encabezado de la grilla  a partir de t.Enc
+//Llena el encabezado de la grilla  a partir de par.Enc
 var
   i: Integer;
 begin
-  gridSal.ColCount:=High(t.Enc)+2;  //cantidad de columnas (más la columna fija)
+  gridSal.BeginUpdate;
+
   gridSal.RowCount:=1;
   gridSal.FixedRows:=1;
-  gridSal.FixedCols := 1;
+  gridSal.FixedCols := 1;  { TODO : Puede fallar si ColsCount = 0 }
+//  gridSal.ColCount:=High(pars.Enc)+2;  //cantidad de columnas (más la columna fija)
+  //Usamos columnas personalizables, en lugar de las columnas normales por facilidad.
+  gridSal.Columns.Clear;
+  for i:=0 to High(pars.Enc) do gridSal.Columns.Add;
+  //define ancho de la columna fija
   gridSal.ColWidths[0] := 25;  //se debe hacer después de definir al menos una fila
   //llena encabezado
-  for i:=0 to High(t.Enc) do begin
-    if t.Enc[i].tipCam = tcsNum then begin
-      //es columna numérica
-      gridSal.Cells[i+1,0] := t.Enc[i].nombre;
+  for i:=0 to High(pars.Enc) do begin
+    gridSal.Columns[i].Title.Caption:=pars.Enc[i].nombre;
+//    gridSal.Columns[i].Title.ImageLayout:=blGlyphLeft;  //íconos a la izquierda
+    if pars.Enc[i].tipCam = tcsNum then begin
+      //es columna numérica (métrica o KPI)
+//      gridSal.Cells[i+1,0] := pars.Enc[i].nombre;
+      gridSal.Columns[i].Alignment := taRightJustify;
+      gridSal.Columns[i].Title.ImageIndex:=1;
     end else begin
       //es columna de dimensión
-      gridSal.Cells[i+1,0] := t.Enc[i].nombre;
+//      gridSal.Cells[i+1,0] := pars.Enc[i].nombre;
+      gridSal.Columns[i].Title.ImageIndex:=0;
     end;
   end;
+  gridSal.EndUpdate(false);
 end;
 function TfraSQLPlusOut.LLenaGrillaDeEditor: boolean;
 //Agrega un reporte a la ventana principal. Si encuentra alguno, devuelve TRUE
@@ -110,7 +123,7 @@ var
 begin
   Result := false;    //valor por defecto
   //explora reporte
-  if t.LeeRegDeList(lin) then begin  //busca primer dato
+  if pars.LeeRegDeList(lin) then begin  //busca primer dato
     //Encontró al menos un reporte. Agrega gráfico
     Result := true;
     LLenaEncabezGrilla;
@@ -128,7 +141,7 @@ begin
   gridSal.BeginUpdate;
   LlenaFilas(lin, nFilas);  //carga la primera fila leida
   Inc(nFilas);
-  while t.LeeRegDeList(lin) do begin  //lee siguientes
+  while pars.LeeRegDeList(lin) do begin  //lee siguientes
     LlenaFilas(lin, nFilas);
     Inc(nFilas);
   end;
@@ -159,14 +172,14 @@ begin
     FMode:=AValue;  //actualiza modo
     //Estaba en modo texto, y debemos actualizar el contenido en la grilla
     gridSal.Clear;
-    t.InicExplorList(edSal.Lines);   //prepara la lectura de las líneas
-    if t.FinLee then exit;
+    pars.InicExplorList(edSal.Lines);   //prepara la lectura de las líneas
+    if pars.FinLee then exit;
     LLenaGrillaDeEditor;  //carga el primero
   end;
 end;
 procedure TfraSQLPlusOut.sqlConLineCompleted(const lin: string);
 begin
-  if t.ExplorarLin(lin) then begin
+  if pars.ExplorarLin(lin) then begin
     //es una fila de datos
     if not llegoEncabezado then begin
       //llegó el encabezado
@@ -213,13 +226,15 @@ begin
   gridSal.Clear;
   nFilas := 1;        //para llevar la cuenta de filas
   llegoEncabezado := false;  //para detectar la aparición del encabezado
-  t.InicExplorac;    //inicia la exploración de las líneas que llegarán
+  pars.InicExplorac;    //inicia la exploración de las líneas que llegarán
 end;
 procedure TfraSQLPlusOut.InitOut;
 //Inicia la salida de datos. Debe llamarse antes de enviar la consulta.
+//Esta diseñado para trabajar cuando se maneja una conexión con TSQLPlusCon.
 //Si se usa el frame con "FrameExplorBD" con este frame, no se debe llamar este
 //método, sino que debe usarse el método TfraExplorBD. SendSQL(), que ya administra
 //la salida apropiada.
+//Aún se debe mejorar el comportamiento de esta rutina.
 begin
   case FMode of
   spmTextLast: begin
@@ -252,11 +267,11 @@ begin
 //  edSal.OnKeyDown:=@edSal_KeyDown;
   FMode:=spmTextLast;   //inicia como texto
   SetTextMode;  //inicia controles
-  t := TConvSqlPlus.Create;  //crea motor de lectura de texto
+  pars := TConvSqlPlus.Create;  //crea motor de lectura de texto
 end;
 destructor TfraSQLPlusOut.Destroy;
 begin
-  t.Destroy;
+  pars.Destroy;
   inherited Destroy;
 end;
 
