@@ -8,7 +8,7 @@ Esta librería tiene las siguientes dependencias:
 * Librería ConfigFrame: (https://github.com/t-edson/ConfigFrame)
 * Librería MisUtils: (https://github.com/t-edson/MisUtils)
 
-Por lo tanto es necesario tener estas librería disponibles.
+Por lo tanto es necesario tener estas librerías disponibles.
 
 La librería SqlPlusConsole, consta de los siguientes archivos:
 
@@ -276,6 +276,7 @@ Estos archivos definen a un frame que permite mostrar visualmente los objetos de
 
 Además estos elementos, se encuentran clasificados por Tres niveles de visibilidad:
 
+```
 -Esquema Actual
    +Tablas
    +Vistas
@@ -297,6 +298,9 @@ Además estos elementos, se encuentran clasificados por Tres niveles de visibili
    +Procedimientos
    +Funciones
    +Enlaces a BD
+```
+
+El panel también puede mostrar información sobre los tablespace y los procesos. Para acceder ciertas información de la base de datos, como los Tablespace, se debe usar un usuario con privilegios de DBA. Si no se tienen privilegios de DBA, el panel no podrá acceder a las tablas o vistas necesarias y mostrará el mensaje "ORA-00942-table or view doesn't exist"
 
 El frame puede ser insertado en cualquier formulario y servirá como una ayuda visual en el aplicativo.
 
@@ -321,7 +325,7 @@ end;
 
 Se ha probado con éxito, usar 'TfraExplorBD', en conexiones a la base de datos mediante un cliente de Telnet, en vez de usar el SQLPlus como cliente local.
 
-El panel de exploración, abre una conexión a la base de datos, y usa solamente esa conexión para todas las tareas de refresco de su interfaz gráfica. Eso no significa que no pueda usarse esa conexión para lanzar consultas a la base de datos. 
+El panel de exploración, abre una conexión a la base de datos, y usa solamente esa conexión para todas las tareas de refresco de su interfaz gráfica. Eso no significa que no pueda usarse esa conexión para lanzar consultas a la base de datos.
 
 De hecho, el panel de exploración, se puede usar como una conexión a la base de datos, reemplazando a 'TSQLPlusCon'. Para ello implementa los métodos:
 
@@ -336,13 +340,13 @@ También se pueden enviar consultas a la base de datos, usando el método:
 
     procedure SendSQL(txt: string);
 
-Sin embargo el resultado de las consultas aparecerá en la ventana de sesión del panel de exploración.
+Sin embargo, el resultado de las consultas aparecerá en la ventana de sesión del panel de exploración, por defecto.
 	
 Para redireccionar la salida de texto del panel de exploración, se puede jugar directamente con 'sqlCon.edSal', pero es más seguro usar el método:
 
 procedure TfraExplorBD.SetOutput(edSal: TSynEdit; maxLinOut0: integer = 100000);
 
-Una vez direccionada la salida a un editor, todo el texto, incluyendo el resultado de las consultas que ejecuta el mismo panel de exploración, se mostrará enel nuevo editor redireccionado. Para retornar la salida a la ventana de sesión del panel, se debe usar el método:
+Una vez direccionada la salida a un editor, todo el texto, incluyendo el resultado de las consultas que ejecuta el mismo panel de exploración, se mostrará en el nuevo editor redireccionado. Para retornar la salida a la ventana de sesión del panel, se debe usar el método:
 
 procedure TfraExplorBD.SetOutputInternal;
 
@@ -360,6 +364,8 @@ Una vez direccionada la salida a un frame 'TfraSQLPlusOut', el panel de explorac
 Una precaución importante, para evitar que el panel de exploración falle en el refresco interno de sus nodos, es evitar enviar comandos que cambien las variables de entorno como LINESIZE, PAGESIZE, FEEDBACK, etc, porque podría evitar que el panel de exploración pueda reconocer correctamente el resultado de sus consultas. 
 
 El desarrollo del panel de exploración ha requerido un trabajo considerable, y se puede decir que es una de las partes principales de la librería.
+
+No todas las funcionalidades están habilitadas
 
 Epílogo
 =======
