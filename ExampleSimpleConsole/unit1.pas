@@ -58,8 +58,8 @@ end;
 procedure TForm1.FormShow(Sender: TObject);
 begin
   Config.Initiate(StatusBar1.Panels[0]);
-  sqlCon.Init(StatusBar1.Panels[1], edSal, Config.fcConOra);
-  sqlCon.InitOut(nil);  //set highlighter for output
+  sqlCon.Init(StatusBar1.Panels[1], Config.fcConOra);
+  sqlCon.SetOut(edSal, nil);  //set highlighter for output
 end;
 
 procedure TForm1.MenuItem1Click(Sender: TObject);  //config

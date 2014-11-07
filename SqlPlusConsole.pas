@@ -5,6 +5,13 @@ Por Tito Hinostroza 12/10/2014
 * Se cambia el nombre de "ed" a "edSal".
 * Se crea el evento OnErrorSQL(), y se quita el mensaje de error que se mostraba
 desde dentro de esta unidad.
+* Se simplifica al método Init(), para que no se indiqu el editor de salida.
+* Se modifica InitOut(), para que reciva al editor de salida.
+* Se cambia el modo de captura de la salida cuando se indica un editor. Ahora se
+usan los eventos OnLineCompleted() y OnLinePrompt(). Este cambio se hace para
+facilitar pdoer conmutar fácilmente entre dicersos editores de salida.
+* Se cambia de nombre a los métodos de respuesta a eventos, para que sigan la norma:
+<objeto>-<evento>.
 
 Descripción
 ===========
@@ -49,25 +56,23 @@ type
       var Command: TSynEditorCommand; var AChar: TUTF8Char; Data: pointer);
     procedure ed_MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure SQLPlusCon_LinePartial(nDat: integer; const lastLin: string);
   private
     fcConOra   : TfraCfgConOra;   //referencia a Frame de configuración.
     FmaxLinTer : integer;  //cantidad máxima de líneas que debe almacenar el terminal
+    LinPrompt  : boolean;  //para manejar al editor de salida
     procedure BuscarErrorEnLineas;
-    procedure PosicionarCursor(HeightScr: integer);
+    procedure PosicionarCursor; inline;
     procedure SetmaxLinTer(AValue: integer);
-    procedure SQLPlusConFirstReady(prompt: string; pIni: TPoint;
-      HeightScr: integer);
-    procedure SQLPlusConGetPrompt(prompt: string; pIni: TPoint;
-      HeightScr: integer);
-    procedure SQLPlusConReadData(nDat: integer; pFinal: TPoint);
   protected
     linSql : integer;    //línea donde empieza la última consulta enviada
     linSqlT: integer;    //línea en el terminal donde empieza la consulta enviada
-    procedure procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
-    procedure procRefreshLine(const grilla: TtsGrid; fIni, HeightScr: integer);
-    procedure procRefreshLines(const grilla: TtsGrid; fIni, fFin,
+    procedure SQLPlusCon_FirstReady(prompt: string; pIni: TPoint;
       HeightScr: integer);
-    procedure procAddLine(HeightScr: integer);
+    procedure SQLPlusCon_GetPrompt(prmLine: string; pIni: TPoint; HeightScr: integer
+      );
+    procedure SQLPlusCon_ReadData(nDat: integer; const lastLin: string);
+    procedure SQLPlusCon_LineCompleted(const lin: string);
   public
     curSigPrm  : boolean;   //Indica si el cursor seguirá al texto que llega
     HayError   : boolean;   //Indica que se detectó un error en la última exploración
@@ -77,15 +82,16 @@ type
     OnQueryEnd : procedure of object;   //Fin de la consulta
     OnErrorConx: TsqEvError;   //Error en la conexión
     OnErrorSQL : TsqEvError;   //Error en la consulta
+    OnLinePartial: TEvReadData; //Reemplazo de OnReaddata
     edSal      : TSynEdit;   {Editor donde se mostrará la salida. Se hace público para
                               poder redireccionar la salida}
     property maxLinTer: integer read FmaxLinTer write SetmaxLinTer;
     procedure Open;        //inicia proceso
     function Closed: boolean;
-    procedure Init(ConnectStatus: TStatusPanel; OutEdit: TSynEdit;
-      fcConOra0: TfraCfgConOra);
+    procedure Init(ConnectStatus: TStatusPanel; fcConOra0: TfraCfgConOra);
     //manejo del editor de salida
-    procedure InitOut(CursorPan: TStatusPanel; Highlight: boolean = true);
+    procedure SetOut(OutEdit: TSynEdit; CursorPan: TStatusPanel;
+      Highlight: boolean = true);
     procedure EnableOut;  //habilita salida al editor
     procedure DisableOut; //deshabilita salida al editor
     procedure DisableOutEdit;
@@ -103,57 +109,56 @@ const
 
 { TSQLPlusCon }
 
-procedure TSQLPlusCon.Init(ConnectStatus: TStatusPanel; OutEdit: TSynEdit; fcConOra0: TfraCfgConOra);
-//Configura la conexión, fijando el panel de estado, editor para mostrar la salida, y el
-//frame con las conexiónes.
+procedure TSQLPlusCon.Init(ConnectStatus: TStatusPanel; fcConOra0: TfraCfgConOra);
+//Configura la conexión, fijando el panel de estado, y el frame con las conexiónes.
 begin
   panel := ConnectStatus;
   if panel<> nil then
     panel.Style:=psOwnerDraw;  //configura panel para dibujarse por evento
-  if OutEdit= nil then exit;
-  edSal := OutEdit;
   fcConOra := fcConOra0;  //guarda referecnia
-  EnableOut;   //habilita la salida al editor
-  OnFirstReady:=@SQLPlusConFirstReady;
-  OnGetPrompt:=@SQLPlusConGetPrompt;
-  OnReadData:=@SQLPlusConReadData;
-//  OnLineCompleted:=@SQLPlusConLineCompleted;
+  OnFirstReady:=@SQLPlusCon_FirstReady;
+  OnGetPrompt:=@SQLPlusCon_GetPrompt;
+  OnReadData:=@SQLPlusCon_ReadData;
   ClearOnOpen:=false;  //No limpiaremos en cada conexión
   ClearScreen;   //limpiamos solo ahora
 end;
 //manejo del editor de salida
-procedure TSQLPlusCon.InitOut(CursorPan: TStatusPanel; Highlight: boolean);
-//Configura al editor de salida, con una configuración predeterminada simple.
+procedure TSQLPlusCon.SetOut(OutEdit: TSynEdit; CursorPan: TStatusPanel;
+                              Highlight: boolean);
+//Configura la salida del proceso indicando un editor de salida, y un panel para el cursor.
+//Al editor indicado, se le aplica una configuración predeterminada simple. Opcionalmente
+//se puede activar el resaltador de sintaxis por defecto.
 //Debe llamarse después de llamar a Init().
 begin
+  if OutEdit= nil then exit;
+  edSal := OutEdit;
   curPanel := CursorPan;
   //configura editor de salida
-  if edSal = nil then exit;
-  if Highlight then edSal.Highlighter := outHL;
-  outHL.detecPrompt:=true;
+  if Highlight then begin
+    edSal.Highlighter := outHL;
+    outHL.detecPrompt:=true;
+  end;
   edSal.ReadOnly:=true;   //no se espera modificar la salida
 //  InicEditorC1(edSal);  requeriría SynFacilUtils
   edSal.Options := edSal.Options - [eoKeepCaretX];  //Quita límite horizontal al cursor
   //para actualizar posición de cursor
   edSal.OnMouseDown:=@ed_MouseDown;
   edSal.OnCommandProcessed:=@ed_CommandProcessed;
- //para actualizar posición de cursor
+  EnableOut;   //habilita la salida al editor
+  LinPrompt := false;   //inicia estado
 end;
 procedure TSQLPlusCon.EnableOut;
 begin
-  OnInitScreen:=@procInitScreen;
-  OnRefreshLine:=@procRefreshLine;
-  OnRefreshLines:=@procRefreshLines;
-  OnAddLine:=@procAddLine;
+  //Engancha los eventos de salida para control de salida en el editor configurado.
+  //Usa el método de captura de línea por línea
+  OnLineCompleted:=@SQLPlusCon_LineCompleted;
+  OnLinePartial:=@SQLPlusCon_LinePartial;
 end;
 procedure TSQLPlusCon.DisableOut;
 begin
-  OnInitScreen:=nil;
-  OnRefreshLine:=nil;
-  OnRefreshLines:=nil;
-  OnAddLine:=nil;
+  OnLineCompleted:=nil;
+  OnLinePartial:=nil;
 end;
-
 procedure TSQLPlusCon.DisableOutEdit;
 //Colorea el editor de salida de modo que de la apariencia de que está desconectado
 var
@@ -181,6 +186,25 @@ begin
   if curPanel = nil then exit;
   curPanel.Text:= dic('fil=%d, col=%d',[edSal.CaretY, edSal.CaretX]);
 end;
+//Control de salida
+procedure TSQLPlusCon.SQLPlusCon_LineCompleted(const lin: string);
+begin
+  if LinPrompt then begin
+    //Estamos en la línea del prompt
+    edSal.Lines[edSal.Lines.Count-1] := lin;  //reemplaza última línea
+    LinPrompt := false;
+  end else begin  //caso común
+    edSal.Lines.Add(lin);
+    PosicionarCursor;
+  end;
+end;
+procedure TSQLPlusCon.SQLPlusCon_LinePartial(nDat: integer;
+  const lastLin: string);
+begin
+  LinPrompt := true;   //marca bandera
+  edSal.Lines.Add(lastLin);   //agrega la línea que contiene al prompt
+  PosicionarCursor;
+end;
 
 procedure TSQLPlusCon.SendSQL(txt: string);
 var
@@ -202,7 +226,7 @@ end;
 procedure TSQLPlusCon.ClearScreen;
 //Limpia la pantalla de salida. Deja al menos 25 líneas.
 begin
-  edSal.ClearAll;
+  if edSal<> nil then edSal.ClearAll;
   ClearTerminal;  //generará el evento OnInitScreen()
 end;
 
@@ -329,15 +353,15 @@ begin
   inherited;
 end;
 
-procedure TSQLPlusCon.PosicionarCursor(HeightScr: integer);
+procedure TSQLPlusCon.PosicionarCursor; inline;
 //Coloca el cursor del editor, en la misma línea que tiene el cursor del
 //terminal VT100 virtual.
 var
   yvt: Integer;
 begin
   if curSigPrm then begin
-    yvt := edSal.Lines.Count-HeightScr-1;  //calcula fila equivalente a inicio de VT100
-    edSal.CaretXY := Point(1, yvt+term.CurY+1);  //siempre al inicio
+    yvt := edSal.Lines.Count;  //calcula última fila
+    edSal.CaretXY := Point(1, yvt);  //siempre al inicio
   end;
 end;
 procedure TSQLPlusCon.SetmaxLinTer(AValue: integer);
@@ -347,14 +371,14 @@ begin
   FmaxLinTer:=AValue;
 end;
 
-procedure TSQLPlusCon.SQLPlusConFirstReady(prompt: string; pIni: TPoint;
+procedure TSQLPlusCon.SQLPlusCon_FirstReady(prompt: string; pIni: TPoint;
   HeightScr: integer);
 //Se produjo la primer oonexión
 begin
   state := ECO_READY;  //para que pase a ECO_BUSY
   SendLn(COMAN_INIC);
 end;
-procedure TSQLPlusCon.SQLPlusConGetPrompt(prompt: string; pIni: TPoint;
+procedure TSQLPlusCon.SQLPlusCon_GetPrompt(prmLine: string; pIni: TPoint;
   HeightScr: integer);
 begin
 //debugln('-GetPrompt');
@@ -365,9 +389,10 @@ begin
   end;
   if OnQueryEnd<>nil then OnQueryEnd;
 end;
-procedure TSQLPlusCon.SQLPlusConReadData(nDat: integer; pFinal: TPoint);
+procedure TSQLPlusCon.SQLPlusCon_ReadData(nDat: integer; const lastLin: string);
 begin
 //debugln('   ReadData:'+IntToStr(nDat));
+  if OnLinePartial<>nil then OnLinePartial(nDat, lastLin);
   //Se aprovecha para verificar si hay mensajes de error
   if state = ECO_CONNECTING then begin
     //Estamos esperando una conexión. Hay que buscar errores de conexión
@@ -375,60 +400,6 @@ begin
     if HayError and (OnErrorConx <> nil) then OnErrorConx(Point(0,0), cadError);
   end;
 end;
-
-procedure TSQLPlusCon.procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
-var
-  i: Integer;
-begin
-//debugln('==InitLines');
-  for i:=fIni to fFin do
-    edSal.Lines.Add(grilla[i]);
-end;
-procedure TSQLPlusCon.procRefreshLine(const grilla: TtsGrid; fIni, HeightScr: integer);
-var
-  yvt: Integer;
-begin
-//  debugln('procRefreshLine: '+IntToStr(fIni));
-  yvt := edSal.Lines.Count-HeightScr-1;
-  edSal.Lines[yvt+fIni] := grilla[fIni];
-  //Llamamos a ProcessMessages para pòder refrescar la aplicación cuando los datos
-  //llegan muy seguido.
-//  Application.ProcessMessages; //PRODUCE que se desordenen las línesa de salida
-end;
-procedure TSQLPlusCon.procRefreshLines(const grilla: TtsGrid; fIni, fFin,
-  HeightScr: integer);
-var
-  yvt: Integer;
-  f: Integer;
-begin
-//  debugln('procRefreshLines: '+IntToStr(fIni)+','+IntToSTr(fFin));
-  yvt := edSal.Lines.Count-HeightScr-1;  //calcula fila equivalente a inicio de VT100
-  edSal.BeginUpdate;
-  for f:=fIni to fFin do
-    edSal.Lines[yvt+ f] := grilla[f];
-  PosicionarCursor(HeightScr);
-  edSal.EndUpdate;
-  edSal.Refresh;  //para mostrar el cambio
-end;
-procedure TSQLPlusCon.procAddLine(HeightScr: integer);
-var
-  i: Integer;
-begin
-  edSal.BeginUpdate();
-  if edSal.Lines.Count > FmaxLinTer then begin
-    //hace espacio
-    for i:= 1 to BLOCK_DEL do
-      edSal.Lines.Delete(0);
-    //actualiza linSql
-//    if linSql> 0 then  //para que de la diferencia
-    linSql := linSql - BLOCK_DEL;
-  end;
-  edSal.Lines.Add('');
-  edSal.EndUpdate;
-  //actualiza linSqlT
-  linSqlT := linSqlT - 1;
-end;
-
 procedure TSQLPlusCon.Open;
 //Abre una conexión al SQLPLUS, con la conexión actual. La conexión actual se lee
 //de 'fcConOra', que se debe haber definido con Init().
@@ -452,7 +423,6 @@ begin
   self.progParam:=con.Params;
   inherited;
 end;
-
 function TSQLPlusCon.Closed: boolean;
 //Indica si la conexión está cerrada
 begin

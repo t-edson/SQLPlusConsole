@@ -1,11 +1,11 @@
 object Form1: TForm1
   Left = 252
-  Height = 461
+  Height = 479
   Top = 145
-  Width = 512
+  Width = 524
   Caption = 'Form1'
-  ClientHeight = 441
-  ClientWidth = 512
+  ClientHeight = 459
+  ClientWidth = 524
   Menu = MainMenu1
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -13,9 +13,9 @@ object Form1: TForm1
   LCLVersion = '1.2.4.0'
   inline edSQL: TSynEdit
     Left = 0
-    Height = 196
+    Height = 195
     Top = 0
-    Width = 512
+    Width = 524
     Align = alClient
     Font.Height = -13
     Font.Name = 'Courier New'
@@ -522,9 +522,9 @@ object Form1: TForm1
   end
   inline edSal: TSynEdit
     Left = 0
-    Height = 209
-    Top = 209
-    Width = 512
+    Height = 228
+    Top = 208
+    Width = 524
     Align = alBottom
     Font.Height = -13
     Font.Name = 'Courier New'
@@ -1031,16 +1031,16 @@ object Form1: TForm1
     Cursor = crVSplit
     Left = 0
     Height = 13
-    Top = 196
-    Width = 512
+    Top = 195
+    Width = 524
     Align = alBottom
     ResizeAnchor = akBottom
   end
   object StatusBar1: TStatusBar
     Left = 0
     Height = 23
-    Top = 418
-    Width = 512
+    Top = 436
+    Width = 524
     Panels = <    
       item
         Width = 150

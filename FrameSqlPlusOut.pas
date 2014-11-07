@@ -20,7 +20,8 @@ type
     edSal: TSynEdit;
     ImageList1: TImageList;
     procedure FrameEnter(Sender: TObject);
-    procedure sqlConLineCompleted(const lin: string);
+    procedure sqlCon_LineCompleted(const lin: string);
+    procedure sqlCon_QueryEnd;
   private
     FMode: TSQLPlusOutMode;
     sqlCon: TSQLPlusCon;
@@ -82,7 +83,6 @@ begin
   if FMode in [spmTextLast, spmContText] then edSal.SetFocus
   else gridSal.SetFocus;
 end;
-
 procedure TfraSQLPlusOut.LLenaEncabezGrilla;
 //Llena el encabezado de la grilla  a partir de par.Enc
 var
@@ -177,7 +177,10 @@ begin
     LLenaGrillaDeEditor;  //carga el primero
   end;
 end;
-procedure TfraSQLPlusOut.sqlConLineCompleted(const lin: string);
+procedure TfraSQLPlusOut.sqlCon_LineCompleted(const lin: string);
+//Se usa para llenar la grilla.
+//Debe estar asociado al evento "OnLineCompleted", de la conexión o del panel de la
+//conexión.
 begin
   if pars.ExplorarLin(lin) then begin
     //es una fila de datos
@@ -190,6 +193,10 @@ begin
     LlenaFilas(lin, nFilas);  //carga la primera fila leida
     Inc(nFilas);
   end;
+end;
+procedure TfraSQLPlusOut.sqlCon_QueryEnd;
+begin
+  gridSal.EndUpdate(true);
 end;
 procedure TfraSQLPlusOut.ed_CommandProcessed(Sender: TObject;
   var Command: TSynEditorCommand; var AChar: TUTF8Char; Data: pointer);
@@ -253,7 +260,9 @@ begin
       sqlCon.ClearScreen; //limpia tambien el editor para evitar confusión
       //prepara para capturar la salida directamente a la grilla
       sqlCon.DisableOut;  //deshabilita salida de información
-      sqlCon.OnLineCompleted:=@sqlConLineCompleted;
+      gridSal.BeginUpdate;  //EndUpdate se hará en sqlCon_QueryEnd().
+      sqlCon.OnLineCompleted:=@sqlCon_LineCompleted;
+      sqlCon.OnQueryEnd:=@sqlCon_QueryEnd;
     end;
   end;
 end;

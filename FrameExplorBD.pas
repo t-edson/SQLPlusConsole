@@ -161,7 +161,9 @@ type
     OnNodUpdate  : TOnNodSelec;  //Un nodo se ha actualizado
     OnDblClickNod: TOnNodSelec;  //DOble Click sobre un nodo
     //Eventos adicionales
-    OnLineCompleted: TEvLinCompleted;  //evento de línea completa recibida
+    OnLineCompleted: TEvLinCompleted;  //Evento de línea completa recibida
+    OnQueryEnd : procedure of object;  //Evento de fin de la consulta
+
     property OnChangeState: TEvRecSysComm read FOnChangeState write SetOnChangeState;
     //funciones generales
     procedure Iniciar(PanControl: TStatusPanel; fcConOra: TfraCfgConOra);  //inicia
@@ -569,7 +571,7 @@ var
   index_name: String;
   n: Integer;
 begin
-debugln('  llegPrompt');
+//debugln('  llegPrompt');
   if nodAct = nil then exit;
   //hay un nodo esperando. Verifica si es mensaje de control
   case nodAct.estado of
@@ -629,6 +631,7 @@ debugln('  llegPrompt');
   end;
   if OnNodUpdate<>nil then OnNodUpdate(nodAct);  //evento
   nodAct := nil;   //ya terminó la consulta
+  if OnQueryEnd<>nil then OnQueryEnd;    //evento
 end;
 procedure TfraExplorBD.sqlCon_ErrorConex(CurXY: TPoint; const msg: string);
 begin
@@ -968,7 +971,7 @@ begin
         sqlCon.ClearScreen;    //limpia tambien el editor para evitar confusión
         //prepara para capturar la salida directamente a la grilla
         SetOutputInternal;     //mantiene la salida interna
-        OnLineCompleted := @fraSQLOut.sqlConLineCompleted;
+        OnLineCompleted := @fraSQLOut.sqlCon_LineCompleted;
       end;
     end;
     sqlCon.SendSQL(txt);  //envía
