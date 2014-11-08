@@ -41,7 +41,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, StdCtrls, EditBtn, IniFiles,
   Types, Graphics, Dialogs, Menus, ComCtrls, MisUtils,
-  ConfigFrame;
+ConfigFrame;
 
 type
   TConOra = record

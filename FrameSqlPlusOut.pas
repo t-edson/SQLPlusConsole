@@ -256,11 +256,11 @@ begin
       //mantiene todo lo que pueda en el editor
     end;
   spmGrid: begin
-      ClearGrid; //debe limpiar la grilla
-      sqlCon.ClearScreen; //limpia tambien el editor para evitar confusión
+      ClearGrid;           //debe limpiar la grilla
+      sqlCon.ClearScreen;  //limpia tambien el editor para evitar confusión
       //prepara para capturar la salida directamente a la grilla
-      sqlCon.DisableOut;  //deshabilita salida de información
-      gridSal.BeginUpdate;  //EndUpdate se hará en sqlCon_QueryEnd().
+      sqlCon.DisableAllOut;   //deshabilita la salida de información
+      gridSal.BeginUpdate; //EndUpdate se hará en sqlCon_QueryEnd().
       sqlCon.OnLineCompleted:=@sqlCon_LineCompleted;
       sqlCon.OnQueryEnd:=@sqlCon_QueryEnd;
     end;
