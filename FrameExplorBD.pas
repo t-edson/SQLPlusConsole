@@ -1,80 +1,104 @@
-{FrameExplorBD 0.4
-==================
-Por Tito Hinostroza 21/9/2014
-* Se cambia el comportamiento de los objetos Vista en el explorador, para que se
-muestren de forma similar a una tabla, crando dos nodos por cada vista (Columnas y Código).
-* Se cambia el comportamiento para que las tablas y vistas no se abran al actualizarse.
-* Se compelta la definición del nombre del nodo en el método TBDNodo.nombre()
+{FrameExplorBD 0.5b
+===================
+Por Tito Hinostroza 11/10/2014
+* Se cambia el nombre de TEstadoNodo a TsqNodeStatus
+* Se cambia el nombre de TTipoNodo a TsqNodeType
+* Se cambia el nombre de TBDNodo.codigo a TBDNodo.source a TsqNodeType
+* Se modifica qLlegoPrompt(), para que agregue información adicional a los nodos
+de tipo Tabla y Vista.
+* Se cambia nombre de qLLegoLineasC(), qErrorConex() y qLlegoPrompt().
+* Se incluye la unidad FrameSQLPlusOut, em la sección USES, para poder manejar
+la salida en un frame "TfraSQLPlusOut".
+* Se configura para poder usar la conexión del explorador, para lanzar otras
+consultas adicionales a las que lanza el mismo explorador.
+* Se modifica sqlCon_LlegoPrompt(), para que agregue información adicional a los
+nodos de tipo tabla o vista.
+* Se cambian lo síconos de procedimiento y función
+* Se reordena el código.
+* Se cambia de nombre a TfraExplorBD.Init() por TfraExplorBD.SetConnection() y se
+simplifican sus parámetros.
+* Se elimina TfraExplorBD.DrawStatePanel(), porque la función de dibujar el estado,
+ya no es de este TfraExplorBD.
 
 Descripción
 ===========
 Frame para implementar un explorador de objetos de una base de datos Oracle, usando
 la unidad SQLPlusConsole.
+Este explorador se implementa en un frame para poder isnertarlo fácilmente en un
+formulario cualquiera. Para mostrar el árbol, se usa un control TTreeView.
+Las acciones a realizar con los objetos del arbol, se deben implementar aparte. Esta
+unidad no incluye ningún menú contextual.
+Para el manejo de los nodos se usa la clase TBDnodo, en lugar del nodo TTreeNode, que
+usa comúnmente TTreeView.
+Los tipos de nodo que se muestran se identifican con el enumerado TsqNodeType.
 }
 unit FrameExplorBD;
 {$mode objfpc}{$H+}
-
 interface
-
 uses
-  Classes, SysUtils, Forms, Controls, ComCtrls, StdCtrls, Graphics, LCLProc,
-  UnTerminal, SQLPlusConsole, SQLPlusParser, FrameCfgConOra, MisUtils,
+  Classes, SysUtils, Forms, Controls, ComCtrls, StdCtrls, Graphics, LCLProc, SynEdit,
+  MisUtils, UnTerminal, SQLPlusConsole, SQLPlusParser, FrameCfgConOra, FrameSQLPlusOut,
   FormVentSesion;
 
 type
   //Estados de nodo
-  TEstadoNodo = (enNoInic,    //Creado pero no actualizado
-                 enLeyendo,   //Esperando a que aparezcan resultados
-                 enEsperand,  //Están llegando datos
-                 enErrConex,  //hubo error de conexión
-                 enLleno,     //actualizado con datos
-                 enLlenoErr,  //actualizado con datos
-                 enSinDatos   //actualizado pero sin datos
-                 );
+  TsqNodeStatus = (enNoInic,    //Creado pero no actualizado
+                  enLeyendo,   //Esperando a que aparezcan resultados
+                  enEsperand,  //Están llegando datos
+                  enErrConex,  //hubo error de conexión
+                  enLleno,     //actualizado con datos
+                  enLlenoErr,  //actualizado con datos
+                  enSinDatos   //actualizado pero sin datos
+                  );
   //Tipos de nodo
-  TTipoNodo = (tnDescon,      //desconocido
+  TsqNodeType = (tnDescon,      //desconocido
 
-               tnListTablas,  //lista de tablas
-               tnTabla,       //tabla
-               tnTabListCampo, //lista de campo de tabla
-               tnTabCampo,     //campo de tabla
-               tnTabListIndic, //lista de índices de tabla
-               tnTabIndic,     //índice de tabla
+                tnListTablas,  //lista de tablas
+                tnTabla,       //tabla
+                tnTabListCampo, //lista de campo de tabla
+                tnTabCampo,     //campo de tabla
+                tnTabListIndic, //lista de índices de tabla
+                tnTabIndic,     //índice de tabla
 
-               tnListVistas,  //lista de vistas
-               tnVista,       //actualizado pero sin datos
-               tnVisListCampo,//Lista de campos de uan vista
-               tnVisCampo,    //campo de una vista
-               tnVisDefinic,  //Definición de la vista
+                tnListVistas,  //lista de vistas
+                tnVista,       //actualizado pero sin datos
+                tnVisListCampo,//Lista de campos de uan vista
+                tnVisCampo,    //campo de una vista
+                tnVisDefinic,  //Definición de la vista
 
-               tnListIndic,   //lista de índices
-               tnIndice,      //Índice
-               tnListProced,  //lista de procedimientos
-               tnProced,      //procedimiento
-               tnListFuncio,  //lista de funciones
-               tnFuncio,      //función
-               tnListDBlnks,  //lsita de DB links
-               tnDBlnk,       //DB link
-               tnListEsquem,  //lista de esquemas
-               tnEsquem,      //esquema
-               tnListUsuar,   //lista de usuarios
-               tnUsuar,       //usuario
-               tnListTabSpa,  //lista de Tablespaces
-               tnTabSpa       //Tablespace
-               );
+                tnListIndic,   //lista de índices
+                tnIndice,      //Índice
+                tnListProced,  //lista de procedimientos
+                tnProced,      //procedimiento
+                tnListFuncio,  //lista de funciones
+                tnFuncio,      //función
+                tnListDBlnks,  //lsita de DB links
+                tnDBlnk,       //DB link
+                tnListEsquem,  //lista de esquemas
+                tnEsquem,      //esquema
+                tnListUsuar,   //lista de usuarios
+                tnUsuar,       //usuario
+                tnListTabSpa,  //lista de Tablespaces
+                tnTabSpa,       //Tablespace
+                tnListProces,  //lista de Procesos
+                tnProces       //Proceso
+                );
 
   { TBDNodo }
 
   TBDNodo = class(TTreeNode)  //tipo de nodo personalizado
     private
     public
-      tipNod: TTipoNodo;    //tipo de nodo
-      estado: TEstadoNodo;  //estado del nodo
+      tipNod: TsqNodeType;    //tipo de nodo
+      estado: TsqNodeStatus;  //estado del nodo
       user  : string;       //para cuando el nodo pertenezca a un usuario (para el usuario actual, dejar en blanco)
       sql   : string;       //consulta ejecutada para llenar el nodo.
       dat   : string;       //fila de datos, cuando se haya definido que el nodo trabaje así
-      codigo: string;       //código fuente u otro contenido, en caso de que se aplique al nodo.
-      campos: TCamposSqlPlus;  //encabezados
+      source: string;       {Código fuente de procedimiento o función. Para los nodos Tabla y Vista, aquí
+                            se guarda información de los campos de la tabla y de los índices}
+      campos: TCamposSqlPlus;  {Encabezados de la información del nodo. Necesario para extraer la información
+                               del campo "dat" de los nodos hijos. En los nodos tabla y vista funcionan de modo
+                               distinto.}
 //      valores: TstringList;  //filas de datos
       function nombre: string; //devuelve el nombre del nodo
       function RutaEs(cad: string): boolean;  //compara con una ruta
@@ -90,12 +114,14 @@ type
     ComboBox1: TComboBox;
     ImageList1: TImageList;
     TreeView1: TTreeView;
-    procedure qErrorConex;
-    procedure qHuboError(nDat: integer; pFinal: TPoint);
-    procedure qLLegoLineasC(const txt: string);
-    procedure qLlegoPrompt;
-    procedure TreeView1Click(Sender: TObject);
-    procedure TreeView1DblClick(Sender: TObject);
+    //Eventos de la conexión
+    procedure sqlCon_ErrorSQL(CurXY: TPoint; const msg: string);
+    procedure sqlCon_LineaCompleta(const txt: string);
+    procedure sqlCon_ErrorConex(CurXY: TPoint; const msg: string);
+    procedure sqlCon_LlegoPrompt;
+    //Eventos de TreeView1
+    procedure TreeView1CreateNodeClass(Sender: TCustomTreeView;
+      var NodeClass: TTreeNodeClass);
     procedure TreeView1Expanding(Sender: TObject; Node: TTreeNode;
       var AllowExpansion: Boolean);
     procedure TreeView1KeyDown(Sender: TObject; var Key: Word;
@@ -103,51 +129,68 @@ type
     procedure TreeView1MouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure TreeView1SelectionChanged(Sender: TObject);
+    procedure TreeView1Click(Sender: TObject);
+    procedure TreeView1DblClick(Sender: TObject);
+    constructor Create(AOwner: TComponent) ; override;
+    destructor Destroy; override;
   private
     c       : TConvSqlPlus;    //convertidor de texto
     VentSes : TfrmVentSesion;  //ventana de sesión
-    cnx     : TConOra;       //conexión a Oracle
     txtSentEspera: String;
     nodAct: TBDnodo;  //Nodo que recibe datos de la consulta actual
+    fraSQLOut: TfraSQLPlusOut;  //referencia frame de salida.
+    maxLinOut: integer;   //máxima cantidad de líneas para el editor de fraSQLOut
+    FOnChangeState: TEvRecSysComm;
+    sqlCon  : TSQLPlusCon;   //conexión Oracle
     procedure CreaEstructuraEsquema(nodEsq: TBDNodo; user: string);
     procedure FijarNodoActualSQL(Node: TTreeNode; ForzarExpan: boolean=true);
-    procedure FijEstadoNodo(n: TBDnodo; estado0: TEstadoNodo; ForzarExpan: boolean=
+    procedure FijEstadoNodo(n: TBDnodo; estado0: TsqNodeStatus; ForzarExpan: boolean=
       true);
     procedure InicEstructura;
     function LanzarSentencia(sql: string; Node: TTreeNode; ForzarExpan: boolean
       ): boolean;
-    procedure LLenarNodoActual(const cad: string; tipNod: TTipoNodo; sql: string);
-    function NuevoNodo(nod: TBDNodo; txt: String; tipNod0: TTipoNodo; idIco: integer
+    procedure LLenarNodoActual(const cad: string; tipNod: TsqNodeType; sql: string);
+    function NuevoNodo(nod: TBDNodo; txt: String; tipNod0: TsqNodeType; idIco: integer
       ): TBDnodo;
     procedure PonerMensNodo(nod: TBDnodo; n: integer);
     procedure PonerMensNodo(nod: TBDnodo; txt: string);
     procedure SentenciaEnEspera;
-    procedure TreeView1CreateNodeClass(Sender: TCustomTreeView;
-      var NodeClass: TTreeNodeClass);
-    { private declarations }
+    procedure SetOnChangeState(AValue: TEvRecSysComm);
+    function TakeConnection: boolean;
   public
-    sqlCon  : TSQLPlusCon;   //conexión Oracle
     //eventos para permitir personalizar las respuestas
     OnMouseUpNod : TOnNodMouse;  //MouseUp sobe un nodo
     OnNodSelec   : TOnNodSelec;  //Selecciona un nodo
     OnNodClick   : TOnNodSelec;  //Click sobre nodo
     OnNodUpdate  : TOnNodSelec;  //Un nodo se ha actualizado
     OnDblClickNod: TOnNodSelec;  //DOble Click sobre un nodo
+    //Eventos adicionales
+    OnLineCompleted: TEvLinCompleted;  //Evento de línea completa recibida
+    OnQueryEnd : procedure of object;  //Evento de fin de la consulta
+
+    property OnChangeState: TEvRecSysComm read FOnChangeState write SetOnChangeState;
+    //funciones generales
+    procedure SetConnection(sqlCon0: TSQLPlusCon);  //inicia
     function NodSelec: TBDNodo;  //nodo selecionado
     function ActualizNodo(nod: TBDNodo): boolean;  //actualiza el contenido del nodo
-    procedure Iniciar(PanControl: TStatusPanel; fcConOra: TfraCfgConOra);  //inicia
-    procedure Conectar;
-    procedure Desconectar;
     procedure MostVentanaSesion;
     procedure OculVentanaSesion;
-    procedure DrawStatePanel(cv: TCanvas; const Rect: TRect);
-    constructor Create(AOwner: TComponent) ; override;
-    destructor Destroy; override;
+    //reflejo de las funciones de sqlCon
+    procedure Open;
+    procedure Close;
+    function Closed: boolean;
+    //Funciones para manejo de salida
+    procedure SetOutput(edSal: TSynEdit; maxLinOut0: integer=100000);  //Fija un editro de salida
+    procedure SetOutput(fraSQLOut0: TfraSQLPlusOut; CursorPan: TStatusPanel;
+      maxLinOut0: integer=100000);
+    procedure SetOutputInternal;
+    procedure SendSQL(txt: string);
   end;
 
 implementation
 {$R *.lfm}
 const
+  MAX_LIN_TER = 1000;  //cantidad de líneas que se guardará en la ventana de salida
   //mensajes de control para los nodos. Deben empezar con "<" para ser reconocidos.
   MSJ_CONECTANDO = '<Conectando>';
   MSJ_LEYENDO    = '<Leyendo>';
@@ -171,7 +214,6 @@ begin
   //verifica si tiene información de usuario
   if user <> '' then Result := user + '.' + Result;
 end;
-
 function TBDNodo.RutaEs(cad: string): boolean;
 var i: integer;
     path: string;
@@ -188,12 +230,6 @@ end;
 
 { TfraExplorBD }
 
-procedure TfraExplorBD.TreeView1CreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
-//Cambia la clase de nodo para poder agregarle más propiedades
-begin
-  NodeClass := TBDNodo;
-end;
-
 function TfraExplorBD.NodSelec: TBDNodo;  //Devuelve el nodo seleccionado
 begin
   if TreeView1.Selected = nil then
@@ -202,7 +238,7 @@ begin
     Result :=TBDnodo(TreeView1.Selected);
 end;
 
-procedure TfraExplorBD.FijEstadoNodo(n: TBDnodo; estado0: TEstadoNodo;
+procedure TfraExplorBD.FijEstadoNodo(n: TBDnodo; estado0: TsqNodeStatus;
                                 ForzarExpan: boolean = true);
 {Fija el estado de un nodo, configurando su contenido si es necesario. NO geenra el
  evento OnExpanding(). Si ForzarExpan = TRUE, fuerza la expansión de otra forma, mantiene
@@ -272,7 +308,7 @@ begin
   TreeView1.EndUpdate;           //termina actualización
   TreeView1.OnExpanding:=evTmp;  //restablece evento
 end;
-function TfraExplorBD.NuevoNodo(nod: TBDNodo; txt: String; tipNod0: TTipoNodo; idIco: integer): TBDnodo;
+function TfraExplorBD.NuevoNodo(nod: TBDNodo; txt: String; tipNod0: TsqNodeType; idIco: integer): TBDnodo;
 //Agrega un nodo a TreeView1, y coloca su índice de ícono. Devuelve un TBDNodo, en lugar
 //de TTreeNode. Pone además HasChildren en TRUE y pone su estado en "enNoInic".
 begin
@@ -291,15 +327,8 @@ begin
   TreeView1.Options:= TreeView1.Options + [tvoReadOnly];  //para que no permita editar el nodo
   TreeView1.OnCreateNodeClass:=@TreeView1CreateNodeClass;
   InicEstructura;            //Crea la estructura inicial
-  //crea la conexión a Oracle
-  sqlCon := TSQLPlusCon.Create;
-  sqlCon.maxLinTer:=1000;
-  sqlCon.OnLineCompleted:=@qLLegoLineasC;
-  sqlCon.OnErrorConx:=@qErrorConex;
-  sqlCon.OnQueryEnd :=@qLlegoPrompt;
-//  sqlCon.OnHuboError:=@qHuboError;
 
-  ventSes := TfrmVentSesion.Create(nil);
+  ventSes := TfrmVentSesion.Create(nil);  //ventana de salida
   c := TConvSqlPlus.Create;  //crea conversor
 end;
 destructor TfraExplorBD.Destroy;
@@ -308,6 +337,54 @@ begin
   sqlCon.Free;  //libera objeto
   ventSes.Free;
   inherited Destroy;
+end;
+procedure TfraExplorBD.SetOnChangeState(AValue: TEvRecSysComm);
+begin
+  if FOnChangeState=AValue then Exit;
+  FOnChangeState:=AValue;
+  sqlCOn.OnChangeState:=FOnChangeState;  //configura evento
+  //lanza para actualizar al primera vez
+  if FOnChangeState<>nil then FOnChangeState('',Point(0,0));
+end;
+function TfraExplorBD.TakeConnection: boolean;
+//Prepara la conexión configurada para usarla aquí. Se tiene el supuesto de que dicha
+//conexión puede estar siendo usada por otros objetos.
+//Si no la puede usar genera un mensaje de error y devuelve FALSE.
+begin
+  Result := true;
+  case sqlCon.State of
+  ECO_BUSY: begin
+      MsgExc('Hay una consulta en proceso');
+      exit(false);
+    end;
+  ECO_CONNECTING: begin
+      MsgExc('Conexión pendiente');
+      exit(false);
+    end;
+  ECO_STOPPED, ECO_ERROR_CON, ECO_READY: begin
+    //En estos casos asumimos que podemos tomar la conexión
+    end;
+  end;
+  sqlCon.maxLinTer := MAX_LIN_TER;  //fija límite de líneas
+  //toma control de los eventos
+  sqlCon.OnErrorConx:=@sqlCon_ErrorConex;
+  sqlCon.OnErrorSQL:=@sqlCon_ErrorSQL;
+  sqlCon.OnQueryEnd :=@sqlCon_LlegoPrompt;
+  //configura eventos de salida de datos
+  sqlCon.DisableAllOut;  //desengancha cualquier salida que pueda tener
+  sqlCon.OnLineCompleted:=@sqlCon_LineaCompleta;
+  //aprovechamos los eventos adicionales para controlar a nuestro visor
+  sqlCon.SetOutVT100(ventSes.edSal, nil, false);
+end;
+procedure TfraExplorBD.SetConnection(sqlCon0: TSQLPlusCon);
+//Define la conexión que debe usar para pedir datos.
+begin
+  //Hubo cambio en la conexión
+//  Close;  //cierra conexión
+//  InicEstructura;
+//  if ConexIgual(cnx, fcConOra.ConexActual) then exit; //no hay cambio
+  sqlCon := sqlCon0;
+  OculVentanaSesion; //cierra ventana de sesión por si estaba abierta
 end;
 procedure TfraExplorBD.CreaEstructuraEsquema(nodEsq: TBDNodo; user: string);
 //Recrea la estructura del TreeView para un nodo de tipo esquema
@@ -392,6 +469,7 @@ begin
 ' FROM dba_free_space'#13#10+
 ' GROUP BY tablespace_name) b'#13#10+
 'WHERE a.tablespace_name = b.tablespace_name ORDER BY 1;';
+  nTabSpa := NuevoNodo(nil,'Procesos',tnListProces,0);
 
   TreeView1.EndUpdate;
 end;
@@ -415,69 +493,15 @@ begin
   else
     nod.Text := nod.Text + ' (' + txt + ')';
 end;
-////////////////////Eventos de la conexión
-procedure TfraExplorBD.qErrorConex;
-begin
-  FijEstadoNodo(nodAct, enErrConex);
-  MsgErr('Error en conexión: ' + sqlCon.cadError);
-end;
-procedure TfraExplorBD.qHuboError(nDat: integer; pFinal: TPoint);
-//Hubo un error en la consulta
-begin
-  msgErr('Error en cosulta: '+sqlCon.cadError);
-end;
-procedure TfraExplorBD.qLlegoPrompt;
-begin
-debugln('  llegPrompt');
-  if nodAct = nil then exit;
-  //hay un nodo esperando. Verifica si es mensaje de control
-  case nodAct.estado of
-  enLeyendo: begin  //estaba esperando, pero no llegaron datos
-      if sqlCon.HayError then  //hubo error
-        FijEstadoNodo(nodAct,enLlenoErr)
-      else begin  //sin errores
-        if nodAct.tipNod in [tnProced,tnFuncio,tnVisDefinic] then begin
-          //estos casos no se expanden
-          nodAct.codigo:=c.bolsa.Text;  //toma el resultado
-          FijEstadoNodo(nodAct,enLLeno);
-          PonerMensNodo(nodAct, IntToStr(c.bolsa.Count)+' líneas.');
-        end else if nodAct.tipNod in [tnTabla, tnVista] then begin
-          //Las tablas y vistas, devuelven una cadena con descripción
-          nodAct.codigo:=c.linEncab + LineEnding + c.linMarca + LineEnding +
-                         c.bolsa.Text;  //resultado con encabezado
-          FijEstadoNodo(nodAct,enLLeno,false);  //no expande
-          PonerMensNodo(nodAct, IntToStr(c.bolsa.Count)+' líneas.');
-        end else begin  //otros nodos
-          FijEstadoNodo(nodAct,enSinDatos);
-          PonerMensNodo(nodAct,0);
-        end;
-      end;
-    end;
-  enEsperand:begin  //caso normal
-      if sqlCon.HayError then  //hubo error
-        FijEstadoNodo(nodAct,enLlenoErr)
-      else begin  //sin errores
-        FijEstadoNodo(nodAct,enLleno);
-        PonerMensNodo(nodAct, nodAct.Count);
-      end;
-    end;
-  enSinDatos, enErrConex, enNoInic, enLleno: begin
-      //no debería pasar ninguno de estos casos, porque se supone que para que lleguen
-      //datos, debería estar en "enLeyendo" o "enEsperand".
-      FijEstadoNodo(nodAct,enSinDatos);
-    end;
-  end;
-  if OnNodUpdate<>nil then OnNodUpdate(nodAct);  //evento
-  nodAct := nil;   //ya terminó la consulta
-end;
-
-procedure TfraExplorBD.qLLegoLineasC(const txt: string);
+//////////////////Eventos de la conexión ////////////////
+procedure TfraExplorBD.sqlCon_LineaCompleta(const txt: string);
 //Evento de llegada de datos. Llena al nodo actual
 var i: integer;
     cad: string;
-    tipNod: TTipoNodo;
+    tipNod: TsqNodeType;
     tmp : string;
 begin
+  if OnLineCompleted<>nil then OnLineCompleted(txt);  //genera evento
   if nodAct = nil then exit;  //no hay nodo actual, se ignora.
   //identifica tipo de nodo hijo
   case nodAct.tipNod of
@@ -563,7 +587,92 @@ begin
   end;
   TreeView1.EndUpdate;
 end;
-procedure TfraExplorBD.LLenarNodoActual(const cad: string; tipNod: TTipoNodo;
+procedure TfraExplorBD.sqlCon_LlegoPrompt;
+var
+  lin: String;
+  campos: TCamposSqlPlus;
+  index_name: String;
+  n: Integer;
+begin
+//debugln('  llegPrompt');
+  if nodAct = nil then exit;
+  //hay un nodo esperando. Verifica si es mensaje de control
+  case nodAct.estado of
+  enLeyendo: begin  //caso normal
+      if sqlCon.HayError then  //hubo error
+        FijEstadoNodo(nodAct,enLlenoErr)
+      else begin  //sin errores
+        if nodAct.tipNod in [tnProced,tnFuncio,tnVisDefinic] then begin
+          //estos casos no se expanden
+          nodAct.source:=c.bolsa.Text;  //toma el resultado
+          FijEstadoNodo(nodAct,enLLeno);
+          PonerMensNodo(nodAct, IntToStr(c.bolsa.Count)+' líneas.');
+        end else if nodAct.tipNod in [tnTabla, tnVista] then begin
+          //Las tablas y vistas, devuelven una cadena con descripción
+          nodAct.source:=c.linEncab + LineEnding + c.linMarca + LineEnding +
+                         c.bolsa.Text;  //resultado con encabezado
+          {------------------------------------------------------
+          Como ayuda adicional, y aprovechando 'nodAct.campos', está vacío para tablas y
+          vistas, escribe información de los campos de la tabla (no del texto). Este código
+          además sirve de ejemplo sobre cómo tratar la información proporcionada}
+          n:=0;
+          setlength(nodAct.campos,n);
+          sqExtractColumns(c.linMarca, c.linEncab, campos);  //extrae campos del texto
+          for lin in c.bolsa do begin
+            index_name := sqGetColTxt(lin, campos, 2);
+            if index_name='' then begin  //noe s índice
+              Inc(n);
+              setlength(nodAct.campos,n);
+              nodAct.campos[n-1].nombre:= sqGetColTxt(lin, campos, 0);
+              nodAct.campos[n-1].tipOra:= sqGetColTxt(lin, campos, 1);
+              nodAct.campos[n-1].etiq:= nodAct.campos[n-1].nombre;
+              nodAct.campos[n-1].tipCam:= tcsCad; //no examina el texto
+            end;
+          end;
+          {------------------------------------------------------}
+          FijEstadoNodo(nodAct,enLLeno,false);  //no expande
+          PonerMensNodo(nodAct, IntToStr(c.bolsa.Count)+' líneas.');
+        end else begin  //otros nodos
+          FijEstadoNodo(nodAct,enSinDatos);
+          PonerMensNodo(nodAct,0);
+        end;
+      end;
+    end;
+  enEsperand:begin  //caso normal
+      if sqlCon.HayError then  //hubo error
+        FijEstadoNodo(nodAct,enLlenoErr)
+      else begin  //sin errores
+        FijEstadoNodo(nodAct,enLleno);
+        PonerMensNodo(nodAct, nodAct.Count);
+      end;
+    end;
+  enSinDatos, enErrConex, enNoInic, enLleno: begin
+      //no debería pasar ninguno de estos casos, porque se supone que para que lleguen
+      //datos, debería estar en "enLeyendo" o "enEsperand".
+      FijEstadoNodo(nodAct,enSinDatos);
+    end;
+  end;
+  if OnNodUpdate<>nil then OnNodUpdate(nodAct);  //evento
+  nodAct := nil;   //ya terminó la consulta
+  if OnQueryEnd<>nil then OnQueryEnd;    //evento
+end;
+procedure TfraExplorBD.sqlCon_ErrorConex(CurXY: TPoint; const msg: string);
+begin
+  FijEstadoNodo(nodAct, enErrConex);
+  MsgErr(msg);
+end;
+procedure TfraExplorBD.sqlCon_ErrorSQL(CurXY: TPoint; const msg: string);
+begin
+  if CurXY.y<>-1 then begin //hay información de posición
+    MsgErr(msg + #13#10 + dic('(Línea: %d, Columna: %d)', [CurXY.y, CurXY.x]));
+    //El número de línea y columna, está referido a la consulta actual, no a todo el texto.
+//      edSQL.CaretXY:=CurXY;  //ubica.
+  end else begin
+    MsgErr(msg);
+  end;
+end;
+
+procedure TfraExplorBD.LLenarNodoActual(const cad: string; tipNod: TsqNodeType;
                                         sql: string);
 //Llena el nodo actual el texto indicado. Usa el mismo ícono del nodo actual.
 var
@@ -655,6 +764,12 @@ begin
   if nod.sql<>'' then
     Result := LanzarSentencia(nod.sql, nod, false);
 end;
+///////////////// Eventos de TreeView1 //////////////////
+procedure TfraExplorBD.TreeView1CreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
+//Cambia la clase de nodo para poder agregarle más propiedades
+begin
+  NodeClass := TBDNodo;
+end;
 procedure TfraExplorBD.TreeView1Expanding(Sender: TObject; Node: TTreeNode;
                    var AllowExpansion: Boolean);
 //se pide expandir
@@ -715,6 +830,7 @@ function TfraExplorBD.LanzarSentencia(sql: string; Node: TTreeNode;
  la conexión y pone la consulta en la cola. Si la conexión está ocupada, genera
  un mesaje y retorna False. En caso contrario retorne true.}
 begin
+  if not TakeConnection then exit; //Toma control de la ceonxión
 //debugln('---lanzar---');
   Result := true;
   case sqlCon.State of
@@ -736,8 +852,8 @@ begin
     FijarNodoActualSQL(Node,ForzarExpan);
     txtSentEspera := sql;  //guarda sentencia
     sqlCon.OnQueryEnd:=@SentenciaEnEspera; //programa
-    Conectar;
-    if sqlCon.HayError then  //no se pudo conectar
+    Open;
+    if sqlCon.HayError then  //no se pudo Open
       FijEstadoNodo(nodAct, enErrConex);
   end;
   ECO_ERROR_CON: begin
@@ -748,12 +864,13 @@ begin
     FijarNodoActualSQL(Node,ForzarExpan);
     txtSentEspera := sql;  //guarda sentencia
     sqlCon.OnQueryEnd:=@SentenciaEnEspera; //programa
-    Conectar;
-    if sqlCon.HayError then  //no se pudo conectar
+    Open;
+    if sqlCon.HayError then  //no se pudo Open
       FijEstadoNodo(nodAct, enErrConex);
   end;
   ECO_READY: begin
     FijarNodoActualSQL(Node,ForzarExpan);
+    SetOutputInternal;   //por si esta´direccionado
     sqlCon.SendSQl(sql);
   end;
   end;
@@ -762,9 +879,10 @@ procedure TfraExplorBD.SentenciaEnEspera;
 //Lanza la sentencia que está en txtSentEspera
 begin
   if sqlCon.state <> ECO_READY then exit;
+  SetOutputInternal;   //por si esta´direccionado
   sqlCon.SendSQl(txtSentEspera);  //lanza consulta
   txtSentEspera := '';  //limpia
-  sqlCon.OnQueryEnd:=@qLlegoPrompt;  //restaura evento
+  sqlCon.OnQueryEnd:=@sqlCon_LlegoPrompt;  //restaura evento
 end;
 procedure TfraExplorBD.MostVentanaSesion;  //Abre la ventana de sesión
 begin
@@ -775,7 +893,8 @@ procedure TfraExplorBD.OculVentanaSesion;  //cierra venatana
 begin
   ventSes.Hide;
 end;
-procedure TfraExplorBD.Conectar;  //Inicia la conexión
+//reflejo de las funciones de sqlCon
+procedure TfraExplorBD.Open;  //Inicia la conexión
 begin
   if sqlCon.state = ECO_READY then exit;
   sqlCon.Open;
@@ -783,34 +902,103 @@ begin
     MsgErr(sqlCon.cadError);
     exit;
   end;
-  if cnx.AbrSes then MostVentanaSesion; //debe abrir la ventana
+  if sqlCon.CurrentCon.AbrSes then
+    MostVentanaSesion; //debe abrir la ventana al conectar
 end;
-procedure TfraExplorBD.Desconectar;  //Desconecta
+procedure TfraExplorBD.Close;  //Desconecta
 begin
   if sqlCon.state = ECO_STOPPED then exit;
   //hay conexión
-  sqlCon.Close;
+  if not sqlCon.Close then
+    msgerr('No se puede cerrar el proceso actual.');
   if nodAct<>nil then begin
     //había nodo esperando su resultado
     FijEstadoNodo(nodAct, enErrConex);
   end;
 end;
-procedure TfraExplorBD.Iniciar(PanControl: TStatusPanel; fcConOra: TfraCfgConOra
-  );
-//COnfigura ala conexión. Conecta a la base de datos
+function TfraExplorBD.Closed: boolean;  //Indica si la conexión está cerrada
 begin
-  sqlCon.Init(PanControl, ventSes.edSal, fcConOra);
-  if ConexIgual(cnx, fcConOra.ConexActual) then exit; //no hay cambio
-  //Hubo cambio en la conexión
-  Desconectar;  //cierra conexión
-  InicEstructura;
-  cnx := fcConOra.ConexActual;  //guarda conexión
-  OculVentanaSesion; //cierra ventana de sesión por si estaba abierta
+  Result := sqlCon.Closed;
 end;
-procedure TfraExplorBD.DrawStatePanel(cv: TCanvas; const Rect: TRect);
-//Procedimiento para dibuja en el panel de estado
+
+//Funciones para manejo de salida
+procedure TfraExplorBD.SetOutput(edSal: TSynEdit; maxLinOut0: integer = 100000);
+{Redirige la salida de texto (que normalmente se envía a su propio visor ventSes)
+a un editor de texto externo. IMPORTANTE. Este editor de texto debería tener al menos
+25 líneas de texto para trabajar como salida.
+El editor debe estar ya configurado con el resaltador si se desea que muestre
+resaltado de sintaxis. No se debe hacer aquí.}
 begin
-  sqlCon.DrawStatePanel(cv, Rect);
+  maxLinOut := maxLinOut0;     //guarda límite
+  //fija salida
+  sqlCon.edSal := edSal;    //no es necesario modificar los eventos
+  sqlCon.maxLinTer:=maxLinOut0; //fija por si acaso
+  //inicia valores
+  fraSQLOut := nil;      //desactiva salida a frame
+  OnLineCompleted:= nil; //desactiva otra salida
+end;
+procedure TfraExplorBD.SetOutput(fraSQLOut0: TfraSQLPlusOut; CursorPan: TStatusPanel;
+                                maxLinOut0: integer = 100000);
+{Redirige la salida de datos a un frame "TfraSQLPlusOut", dejando al panel hacer la gestión
+de la salida para las consultas. Este método solo se debe realizar una vez al inicio.
+Cuando se define un frame de salida con este método, se debe enviar la consulta con el
+método TfraExplorBD.SendSQL()}
+begin
+  fraSQLOut := fraSQLOut0;     //guarda referencia
+  maxLinOut := maxLinOut0;     //guarda límite
+  if fraSQLOut = nil then exit;
+  //Inicia el frame, para trabajar con la conexión de este panel
+  fraSQLout.Init(sqlCon, CursorPan);
+  //fija salida por defecto
+  sqlCon.edSal := fraSQLOut.edSal; //no es necesario modificar los eventos
+  sqlCon.ClearScreen;     //para que inicialice al editor.
+  sqlCon.maxLinTer:=maxLinOut0; //fija por si acaso
+end;
+procedure TfraExplorBD.SetOutputInternal;
+{Retorna la salida de texto a ventSes, como funciona en modo por defecto}
+begin
+  sqlCon.edSal := ventSes.edSal;
+  sqlCon.maxLinTer:=MAX_LIN_TER;   //retorna su capacidad
+end;
+procedure TfraExplorBD.SendSQL(txt: string);
+{Función reflejo de sqlCon.SendSQL(), pero con la posibilidad de gestionar el tipo de salida
+ (texto o grills)}
+begin
+  //verifica estado de la conexión
+  if sqlCon.Closed then begin
+    if MsgYesNo('Conexión no iniciada. ¿Conectar?') = 1 then sqlCon.Open;
+    exit;
+  end;
+  //verifica si hay frame de salida
+  if fraSQLOut <> nil then begin
+    //Hay un frame definido para la salida
+    case fraSQLOut.Mode of
+    spmTextLast: begin
+        //solo debe mantener el último resultado
+        sqlCon.ClearScreen;
+        sqlCon.edSal := fraSQLOut.edSal;  //direcciona al editor
+        sqlCon.maxLinTer:=maxLinOut;   //define tamaño
+        OnLineCompleted :=nil;  //desactiva la salida a la grilla
+      end;
+    spmContText: begin
+        sqlCon.edSal := fraSQLOut.edSal;  //direcciona al editor
+        sqlCon.maxLinTer:=maxLinOut;   //define tamaño
+        OnLineCompleted :=nil;  //desactiva la salida a la grilla
+        //mantiene todo lo que pueda en el editor
+      end;
+    spmGrid: begin
+        fraSQLOut.ClearGrid;   //Prepara a la grilla
+        sqlCon.ClearScreen;    //limpia tambien el editor para evitar confusión
+        //prepara para capturar la salida directamente a la grilla
+        SetOutputInternal;     //mantiene la salida interna
+        OnLineCompleted := @fraSQLOut.sqlCon_LineCompleted;
+      end;
+    end;
+    sqlCon.SendSQL(txt);  //envía
+  end else begin
+    //la salida es el visor interno o alguno externo
+    sqlCon.SendSQL(txt);
+  end;
 end;
 
 end.
