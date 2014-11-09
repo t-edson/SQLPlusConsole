@@ -13,6 +13,8 @@ y el otro usando SetOutVT100(). Ambos métodos usan grupos de eventos distintos.
 <objeto>-<evento>.
 * Se crea la función CurrentCon(), para retornar la conexión actual.
 * Se crea el método DisableAllOut(), para desconectar la salida de datos.
+* Se crea la función TakeConnection(), para permitir usar la conexión por diversos
+procesos.
 
 Descripción
 ===========
@@ -32,7 +34,7 @@ unit SQLPlusConsole;
 {$mode objfpc}{$H+}
 interface
 uses
-  Classes, SysUtils, LCLProc, LCLType, Controls, ComCtrls, strutils, Dialogs,
+  Classes, SysUtils, LCLProc, LCLType, Controls, ComCtrls, strutils,
   Graphics, Math, SynEdit, SynEditKeyCmds,
   MisUtils, TermVT, UnTerminal, FrameCfgConOra, SqlPlusHighlighter;
 
@@ -67,6 +69,7 @@ type
   protected
     linSql : integer;    //línea donde empieza la última consulta enviada
     linSqlT: integer;    //línea en el terminal donde empieza la consulta enviada
+    { TODO : Se debe implementar el procesamiento de linSqlT, cuando se use SetOut() }
     procedure SQLPlusCon_FirstReady(prompt: string; pIni: TPoint;
       HeightScr: integer);
     procedure SQLPlusCon_GetPrompt(prmLine: string; pIni: TPoint; HeightScr: integer);
@@ -106,9 +109,10 @@ type
     procedure EnableOutVT100;
 //    procedure DisableOut; //deshabilita salida al editor
 //    procedure DisableOutVT100;
-    procedure DisableAllOut;
+    procedure DisableAllOut;   //Desconecta de todas las salidas que pudiera tener
     procedure DisableOutEdit;
-    procedure SendSQL(txt: string);  //Envía consulta al SQLPLUS
+    function TakeConnection: boolean;  //Permite tomar la conexión para usarla
+    procedure SendSQL(txt: string);   //Envía consulta al SQLPLUS
     procedure ClearScreen;
     procedure SetLanguage(lang: string);
     constructor Create;  //Constructor
@@ -253,6 +257,28 @@ begin
   edSal.Gutter.Parts[1].MarkupInfo.Foreground:=colTxt; //texto del número de línea
   edSal.Font.Color:=colTxt;      //color de texto normal
 end;
+function TSQLPlusCon.TakeConnection: boolean;
+//Verifica si la conexión está disponible para ser usada por algún proceso. De ser así
+//elimina cualquier salida que pudiera tener configurada y devuleve TRUE.
+//Si la conexión estuviera ocupada, devuelve FALSE.
+begin
+  Result := true;  //por defecto
+  case State of
+  ECO_BUSY: begin
+      MsgExc('Hay una consulta en proceso');
+      exit(false);
+    end;
+  ECO_CONNECTING: begin
+      MsgExc('Conexión pendiente');
+      exit(false);
+    end;
+  ECO_STOPPED, ECO_ERROR_CON, ECO_READY: begin
+    //En estos casos asumimos que podemos tomar la conexión
+    end;
+  end;
+  DisableAllOut;  //desengancha cualquier salida que pueda tener
+end;
+
 procedure TSQLPlusCon.ed_CommandProcessed(Sender: TObject;
   var Command: TSynEditorCommand; var AChar: TUTF8Char; Data: pointer);
 begin

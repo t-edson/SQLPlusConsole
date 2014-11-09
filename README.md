@@ -401,7 +401,11 @@ Entre los archivos de la librería, se encuentra el frame TfraExplorBD, definido
 
 Estos archivos definen a un frame que permite mostrar visualmente los objetos de la base de datos, como tablas, vistas o procedimientos almacenados.
 
-Además estos elementos, se encuentran clasificados por Tres niveles de visibilidad:
+Este es un objeto visual, si se inserta en un formulario, tendrá esta apariencia:
+
+![SQLPlusConsole](http://blog.pucp.edu.pe/media/4946/20141108-panelexpl.png "Panel de exploración")
+
+Los objetos de la base de datos se encuentran clasificados en tres niveles de visibilidad:
 
 ```
 -Esquema Actual
@@ -427,7 +431,7 @@ Además estos elementos, se encuentran clasificados por Tres niveles de visibili
    +Enlaces a BD
 ```
 
-El panel también puede mostrar información sobre los usuarios, tablespace y los procesos. Para acceder ciertas información de la base de datos, como los Tablespace, se debe usar un usuario con privilegios de DBA. Si no se tienen privilegios de DBA, el panel no podrá acceder a las tablas o vistas necesarias y mostrará el mensaje "ORA-00942-table or view doesn't exist"
+El panel también puede mostrar información sobre los usuarios, tablespace y los procesos. Para acceder a cierta información de la base de datos, como los Tablespace, se debe usar un usuario con privilegios de DBA. Si no se tienen privilegios de DBA, el panel no podrá acceder a las tablas o vistas necesarias y mostrará el mensaje "ORA-00942-table or view doesn't exist"
 
 El frame puede ser insertado en cualquier formulario y servirá como una ayuda visual en el aplicativo.
 
@@ -440,61 +444,42 @@ uses ... , FrameExplorBD;
 
 procedure TPrincipal.FormShow(Sender: TObject);
 begin
-  Config.Iniciar(...);   //inicia configuración
-  frmPanelBD.Iniciar(StatusBar1.Panels[1], Config.fcConOra);  //inicia panel 
+  sqlCon.Init(...);  //inicia conexión
+  fraPanelBD.SetConnection(sqlCon);   //pasa conexión al panel
   ...
 end;
 ```
 
-'TfraExplorBD', utiliza a la unidad SqlPlusConsole, para realizar la conexión a la base de datos. Toda la información visual mostrada en el frame, se obtiene a través de consultas SQL, cuyas salida de texto es procesada para convertirla en información visual.
+Uso de la conexión
+------------------
 
-'TfraExplorBD', también incluye un visor de texto, para mostrar la salida de las consultas que realiza, pero esta ventana no es primordial para el funcionamiento del frame, sino más bien sirve como una ayuda para la depuración.
+'TfraExplorBD', utiliza una conexión 'TSQLPlusCon' (de la unidad SqlPlusConsole), para realizar la conexión a la base de datos. Dicha conexión debe estar ya configurada y funcional. Toda la información visual mostrada en el frame, se obtiene a través de consultas SQL, cuyas salida de texto es procesada para convertirla en información visual.
+
+'TfraExplorBD', también incluye un visor de texto, para mostrar la salida de las consultas que realiza, pero esta ventana no es primordial para el funcionamiento del frame, sino más bien sirve como una ayuda para monitorear la conexión.
 
 Se ha probado con éxito, usar 'TfraExplorBD', en conexiones a la base de datos mediante un cliente de Telnet, en vez de usar el SQLPlus como cliente local.
 
-El panel de exploración, abre una conexión a la base de datos, y usa solamente esa conexión para todas las tareas de refresco de su interfaz gráfica. Eso no significa que no pueda usarse esa conexión para lanzar consultas a la base de datos.
+El panel de exploración, requiere que se le pase la referencia de una conexión a la base de datos, y usa solamente esa conexión para todas las tareas de refresco de su interfaz gráfica. 
 
-De hecho, el panel de exploración, se puede usar como una conexión a la base de datos, reemplazando a 'TSQLPlusCon'. Para ello implementa los métodos y eventos:
+Eso no significa que no pueda usarse esa conexión para lanzar consultas a la base de datos.  El panel de exploración se ha diseñado para poder usar una conexión y poder compartirla con otros procesos de la aplicación. Cada vez que el panel de exploración necesita obtener información de la base de datos, verifica primero si la conexión referenciada, se encuentra disponible para usarla. De ser así toma el control de los eventos de la conexión para su trabajo interno. Si la conexión se encontrara ocupada, mostraría un mensaje de error y no ejecutaría la consulta.
 
-    procedure Open;
-    procedure Close;
-    function Closed: boolean;
-    procedure DrawStatePanel(cv: TCanvas; const Rect: TRect);
+De la misma forma se espera que trabaje el objeto con el que se comparta la conexión para evitar interferencias con el trabajo.
+
+Solo como una funcionalidad adicional, se tienen definidos dos eventos-reflejo de TSQLPlusCon:
+
+```
     OnLineCompleted: TEvLinCompleted;  //Evento de línea completa recibida
     OnQueryEnd : procedure of object;  //Evento de Fin de la consulta
+```
 
-que son reflejo de los métodos y eventos, del mismo nombre, que tiene un objeto 'TSQLPlusCon'.
+Estos eventos pueden servir de ayuda cuando se requiera información adicional del SQLPLUS, mientras el panel de exploración tenga el control de la conexión.
 
-También se pueden enviar consultas a la base de datos, usando el método:
-
-    procedure SendSQL(txt: string);
-
-Sin embargo, el resultado de las consultas aparecerá en la ventana de sesión del panel de exploración, por defecto.
-	
-Para redireccionar la salida de texto del panel de exploración, se puede jugar directamente con 'sqlCon.edSal', pero es más seguro usar el método:
-
-procedure TfraExplorBD.SetOutput(edSal: TSynEdit; maxLinOut0: integer = 100000);
-
-Una vez direccionada la salida a un editor, todo el texto, incluyendo el resultado de las consultas que ejecuta el mismo panel de exploración, se mostrará en el nuevo editor redireccionado. Para retornar la salida a la ventana de sesión del panel, se debe usar el método:
-
-procedure TfraExplorBD.SetOutputInternal;
-
-Sin embargo, si de mostrar resultados, se trata, el panel de exploración maneja mejor la salida usando el frame 'TfraSQLPlusOut' (que además puede mostrar los datos en forma de grilla), definido en la unidad 'FrameSqlPlusOut.pas'.
-
-Para asociar el panel a un frame de salida 'TfraSQLPlusOut', se debe usar el método:
-
-procedure TfraExplorBD.SetOutput(fraSQLOut0: TfraSQLPlusOut; CursorPan: TStatusPanel;
-                                maxLinOut0: integer = 100000);
-
-El parámentro 'CursorPan' es un panel de un TStatusBar, en donde se desea mostrar la posición del cursor cuando el enfoque lo tenga el editor de salida del objeto 'TfraSQLPlusOut'.
-
-Una vez direccionada la salida a un frame 'TfraSQLPlusOut', el panel de exploración gestionará la salida de datos, inclusive cuando el frame se encuentre en modo grilla.
-
-Una precaución importante, para evitar que el panel de exploración falle en el refresco interno de sus nodos, es evitar enviar comandos que cambien las variables de entorno como LINESIZE, PAGESIZE, FEEDBACK, etc, porque podría evitar que el panel de exploración pueda reconocer correctamente el resultado de sus consultas. 
+Si se comparte la conexión con otro proceso, una precaución importante, para evitar que el panel de exploración falle en el refresco interno de sus nodos, es evitar enviar comandos que cambien las variables de entorno como LINESIZE, PAGESIZE, FEEDBACK, etc, porque podría evitar que el panel de exploración pueda reconocer correctamente el resultado de sus consultas. 
 
 El desarrollo del panel de exploración ha requerido un trabajo considerable, y se puede decir que es una de las partes principales de la librería.
 
 No todas las funcionalidades  del panel están habilitadas. Se ha trabajado principalmente en los objetos del grupo "Esquema Actual". El grupo "Otros esquemas" no está habilitado actualmente, y el grupo "Todos los esquemas", no es totalmente funcional.
+
 
 Epílogo
 =======

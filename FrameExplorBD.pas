@@ -15,7 +15,7 @@ consultas adicionales a las que lanza el mismo explorador.
 nodos de tipo tabla o vista.
 * Se cambian lo síconos de procedimiento y función
 * Se reordena el código.
-* Se cambia de nombre a TfraExplorBD.Init() por TfraExplorBD.SetConnection() y se
+* Se cambia de nombre a TfraExplorBD.Iniciar() por TfraExplorBD.SetConnection() y se
 simplifican sus parámetros.
 * Se elimina TfraExplorBD.DrawStatePanel(), porque la función de dibujar el estado,
 ya no es de este TfraExplorBD.
@@ -36,8 +36,8 @@ unit FrameExplorBD;
 {$mode objfpc}{$H+}
 interface
 uses
-  Classes, SysUtils, Forms, Controls, ComCtrls, StdCtrls, Graphics, LCLProc, SynEdit,
-  MisUtils, UnTerminal, SQLPlusConsole, SQLPlusParser, FrameCfgConOra, FrameSQLPlusOut,
+  Classes, SysUtils, Forms, Controls, ComCtrls, StdCtrls, LCLProc, SynEdit,
+  MisUtils, UnTerminal, SQLPlusConsole, SQLPlusParser, FrameSQLPlusOut,
   FormVentSesion;
 
 type
@@ -138,8 +138,6 @@ type
     VentSes : TfrmVentSesion;  //ventana de sesión
     txtSentEspera: String;
     nodAct: TBDnodo;  //Nodo que recibe datos de la consulta actual
-    fraSQLOut: TfraSQLPlusOut;  //referencia frame de salida.
-    maxLinOut: integer;   //máxima cantidad de líneas para el editor de fraSQLOut
     FOnChangeState: TEvRecSysComm;
     sqlCon  : TSQLPlusCon;   //conexión Oracle
     procedure CreaEstructuraEsquema(nodEsq: TBDNodo; user: string);
@@ -176,15 +174,11 @@ type
     procedure MostVentanaSesion;
     procedure OculVentanaSesion;
     //reflejo de las funciones de sqlCon
-    procedure Open;
-    procedure Close;
-    function Closed: boolean;
+//    procedure Open;
+//    procedure Close;
     //Funciones para manejo de salida
-    procedure SetOutput(edSal: TSynEdit; maxLinOut0: integer=100000);  //Fija un editro de salida
-    procedure SetOutput(fraSQLOut0: TfraSQLPlusOut; CursorPan: TStatusPanel;
-      maxLinOut0: integer=100000);
-    procedure SetOutputInternal;
-    procedure SendSQL(txt: string);
+//    procedure SetOutputInternal;
+//    procedure SendSQL(txt: string);
   end;
 
 implementation
@@ -334,7 +328,6 @@ end;
 destructor TfraExplorBD.Destroy;
 begin
   c.Free;  //libera objeto
-  sqlCon.Free;  //libera objeto
   ventSes.Free;
   inherited Destroy;
 end;
@@ -342,7 +335,7 @@ procedure TfraExplorBD.SetOnChangeState(AValue: TEvRecSysComm);
 begin
   if FOnChangeState=AValue then Exit;
   FOnChangeState:=AValue;
-  sqlCOn.OnChangeState:=FOnChangeState;  //configura evento
+  sqlCon.OnChangeState:=FOnChangeState;  //configura evento
   //lanza para actualizar al primera vez
   if FOnChangeState<>nil then FOnChangeState('',Point(0,0));
 end;
@@ -351,36 +344,24 @@ function TfraExplorBD.TakeConnection: boolean;
 //conexión puede estar siendo usada por otros objetos.
 //Si no la puede usar genera un mensaje de error y devuelve FALSE.
 begin
-  Result := true;
-  case sqlCon.State of
-  ECO_BUSY: begin
-      MsgExc('Hay una consulta en proceso');
-      exit(false);
-    end;
-  ECO_CONNECTING: begin
-      MsgExc('Conexión pendiente');
-      exit(false);
-    end;
-  ECO_STOPPED, ECO_ERROR_CON, ECO_READY: begin
-    //En estos casos asumimos que podemos tomar la conexión
-    end;
-  end;
+  Result := true;  //por defecto
+  if not sqlCon.TakeConnection then exit(false);  //toma si está disponible
+  //la conexión está disponible para usarla
   sqlCon.maxLinTer := MAX_LIN_TER;  //fija límite de líneas
   //toma control de los eventos
   sqlCon.OnErrorConx:=@sqlCon_ErrorConex;
   sqlCon.OnErrorSQL:=@sqlCon_ErrorSQL;
   sqlCon.OnQueryEnd :=@sqlCon_LlegoPrompt;
   //configura eventos de salida de datos
-  sqlCon.DisableAllOut;  //desengancha cualquier salida que pueda tener
   sqlCon.OnLineCompleted:=@sqlCon_LineaCompleta;
-  //aprovechamos los eventos adicionales para controlar a nuestro visor
+  //Aprovechamos los eventos adicionales para controlar a nuestro visor
+  //La desventaja de trabajar con SetOutVT100(), es que siempre limpiará la salida,
+  //cuando se tome la conexión.
   sqlCon.SetOutVT100(ventSes.edSal, nil, false);
 end;
 procedure TfraExplorBD.SetConnection(sqlCon0: TSQLPlusCon);
 //Define la conexión que debe usar para pedir datos.
 begin
-  //Hubo cambio en la conexión
-//  Close;  //cierra conexión
 //  InicEstructura;
 //  if ConexIgual(cnx, fcConOra.ConexActual) then exit; //no hay cambio
   sqlCon := sqlCon0;
@@ -852,7 +833,7 @@ begin
     FijarNodoActualSQL(Node,ForzarExpan);
     txtSentEspera := sql;  //guarda sentencia
     sqlCon.OnQueryEnd:=@SentenciaEnEspera; //programa
-    Open;
+    sqlCon.Open;
     if sqlCon.HayError then  //no se pudo Open
       FijEstadoNodo(nodAct, enErrConex);
   end;
@@ -864,13 +845,12 @@ begin
     FijarNodoActualSQL(Node,ForzarExpan);
     txtSentEspera := sql;  //guarda sentencia
     sqlCon.OnQueryEnd:=@SentenciaEnEspera; //programa
-    Open;
+    sqlCon.Open;
     if sqlCon.HayError then  //no se pudo Open
       FijEstadoNodo(nodAct, enErrConex);
   end;
   ECO_READY: begin
     FijarNodoActualSQL(Node,ForzarExpan);
-    SetOutputInternal;   //por si esta´direccionado
     sqlCon.SendSQl(sql);
   end;
   end;
@@ -879,7 +859,6 @@ procedure TfraExplorBD.SentenciaEnEspera;
 //Lanza la sentencia que está en txtSentEspera
 begin
   if sqlCon.state <> ECO_READY then exit;
-  SetOutputInternal;   //por si esta´direccionado
   sqlCon.SendSQl(txtSentEspera);  //lanza consulta
   txtSentEspera := '';  //limpia
   sqlCon.OnQueryEnd:=@sqlCon_LlegoPrompt;  //restaura evento
@@ -894,7 +873,7 @@ begin
   ventSes.Hide;
 end;
 //reflejo de las funciones de sqlCon
-procedure TfraExplorBD.Open;  //Inicia la conexión
+{procedure TfraExplorBD.Open;  //Inicia la conexión
 begin
   if sqlCon.state = ECO_READY then exit;
   sqlCon.Open;
@@ -915,52 +894,16 @@ begin
     //había nodo esperando su resultado
     FijEstadoNodo(nodAct, enErrConex);
   end;
-end;
-function TfraExplorBD.Closed: boolean;  //Indica si la conexión está cerrada
-begin
-  Result := sqlCon.Closed;
-end;
+end;}
 
 //Funciones para manejo de salida
-procedure TfraExplorBD.SetOutput(edSal: TSynEdit; maxLinOut0: integer = 100000);
-{Redirige la salida de texto (que normalmente se envía a su propio visor ventSes)
-a un editor de texto externo. IMPORTANTE. Este editor de texto debería tener al menos
-25 líneas de texto para trabajar como salida.
-El editor debe estar ya configurado con el resaltador si se desea que muestre
-resaltado de sintaxis. No se debe hacer aquí.}
-begin
-  maxLinOut := maxLinOut0;     //guarda límite
-  //fija salida
-  sqlCon.edSal := edSal;    //no es necesario modificar los eventos
-  sqlCon.maxLinTer:=maxLinOut0; //fija por si acaso
-  //inicia valores
-  fraSQLOut := nil;      //desactiva salida a frame
-  OnLineCompleted:= nil; //desactiva otra salida
-end;
-procedure TfraExplorBD.SetOutput(fraSQLOut0: TfraSQLPlusOut; CursorPan: TStatusPanel;
-                                maxLinOut0: integer = 100000);
-{Redirige la salida de datos a un frame "TfraSQLPlusOut", dejando al panel hacer la gestión
-de la salida para las consultas. Este método solo se debe realizar una vez al inicio.
-Cuando se define un frame de salida con este método, se debe enviar la consulta con el
-método TfraExplorBD.SendSQL()}
-begin
-  fraSQLOut := fraSQLOut0;     //guarda referencia
-  maxLinOut := maxLinOut0;     //guarda límite
-  if fraSQLOut = nil then exit;
-  //Inicia el frame, para trabajar con la conexión de este panel
-  fraSQLout.Init(sqlCon, CursorPan);
-  //fija salida por defecto
-  sqlCon.edSal := fraSQLOut.edSal; //no es necesario modificar los eventos
-  sqlCon.ClearScreen;     //para que inicialice al editor.
-  sqlCon.maxLinTer:=maxLinOut0; //fija por si acaso
-end;
-procedure TfraExplorBD.SetOutputInternal;
+{procedure TfraExplorBD.SetOutputInternal;
 {Retorna la salida de texto a ventSes, como funciona en modo por defecto}
 begin
   sqlCon.edSal := ventSes.edSal;
   sqlCon.maxLinTer:=MAX_LIN_TER;   //retorna su capacidad
-end;
-procedure TfraExplorBD.SendSQL(txt: string);
+end;}
+{procedure TfraExplorBD.SendSQL(txt: string);
 {Función reflejo de sqlCon.SendSQL(), pero con la posibilidad de gestionar el tipo de salida
  (texto o grills)}
 begin
@@ -969,37 +912,10 @@ begin
     if MsgYesNo('Conexión no iniciada. ¿Conectar?') = 1 then sqlCon.Open;
     exit;
   end;
-  //verifica si hay frame de salida
-  if fraSQLOut <> nil then begin
-    //Hay un frame definido para la salida
-    case fraSQLOut.Mode of
-    spmTextLast: begin
-        //solo debe mantener el último resultado
-        sqlCon.ClearScreen;
-        sqlCon.edSal := fraSQLOut.edSal;  //direcciona al editor
-        sqlCon.maxLinTer:=maxLinOut;   //define tamaño
-        OnLineCompleted :=nil;  //desactiva la salida a la grilla
-      end;
-    spmContText: begin
-        sqlCon.edSal := fraSQLOut.edSal;  //direcciona al editor
-        sqlCon.maxLinTer:=maxLinOut;   //define tamaño
-        OnLineCompleted :=nil;  //desactiva la salida a la grilla
-        //mantiene todo lo que pueda en el editor
-      end;
-    spmGrid: begin
-        fraSQLOut.ClearGrid;   //Prepara a la grilla
-        sqlCon.ClearScreen;    //limpia tambien el editor para evitar confusión
-        //prepara para capturar la salida directamente a la grilla
-        SetOutputInternal;     //mantiene la salida interna
-        OnLineCompleted := @fraSQLOut.sqlCon_LineCompleted;
-      end;
-    end;
-    sqlCon.SendSQL(txt);  //envía
-  end else begin
-    //la salida es el visor interno o alguno externo
-    sqlCon.SendSQL(txt);
+  //la salida es el visor interno o alguno externo
+  sqlCon.SendSQL(txt);
   end;
-end;
+end;}
 
 end.
 
