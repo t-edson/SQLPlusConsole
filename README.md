@@ -450,6 +450,89 @@ begin
 end;
 ```
 
+Muy importante es notar que se usa el evento OnShow(), en lugar de OnCreate, para inicar la conexión y para definir esa conexión al panel. El motivo es que, para iniciar la conexión, suele ser necesario usar el formulario de configuración, y este formulario por lo general no está disponible al ejecutarse el evento OnCreate(), del formulario principal. Por eso es fuertemente recomendable usar el evnto OnShow().
+
+También se puede insertar dinámicamente, como es común cuando se hace con Frames en Lazarus. Un código para crear al panel dinámicamente sería:
+
+```
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  fraExplorBD := TfraExplorBD.Create(Self); //Crea explorador de base de datos
+  fraExplorBD.Parent := Self;
+  fraExplorBD.Align:=alLeft;    //alinea
+  ...
+end;
+
+procedure TPrincipal.FormShow(Sender: TObject);
+begin
+  sqlCon.Init(...);  //inicia conexión
+  fraPanelBD.SetConnection(sqlCon);   //pasa conexión al panel
+  ...
+end;
+
+procedure TfrmPrincipal.FormDestroy(Sender: TObject);
+begin
+  fraExplorBD.Destroy;
+end;
+```
+
+Notar que aunque se crea al panel en el evento OnCreate(), la configuración de la conexión se sigue haciendo en OnShow().
+
+Interacción con el Panel
+------------------------
+
+El panel de exploración no incluye menús contextuales, o acciones específicas predefinidas. Toda interacción debe realizarse a través de sus eventos. Estos son: 
+
+    OnMouseUpNod : TOnNodMouse;  //MouseUp sobre un nodo
+    OnNodSelec   : TOnNodSelec;  //Selecciona un nodo
+    OnNodClick   : TOnNodSelec;  //Click sobre nodo
+    OnNodUpdate  : TOnNodSelec;  //Un nodo se ha actualizado
+    OnDblClickNod: TOnNodSelec;  //Doble Click sobre un nodo
+
+Es fácil identificar la función de cada evento, por su nombre. 'OnNodUpdate' se dispara cuando un nodo en particular ha terminado de actualizar sus datos. 
+
+La mayoría de nodos del árbol del panel tienen asociadas consultas SQL a ellos. Cuando se requiere actualizar los datos de ese nodo, lo que se hace es lanzar esa consulta a la base de datos y cuando se obtiene la respuesta, se llena el nodo (llenando campos internos o agregando nodos hijos) con los datos obtenidos.
+
+Muy aparte de estos eventos, definidos en 'TfraExplorBD', se pueden usar también los eventos del propio arbol de 'TfraExplorBD', que es un objeto 'TTreeView':
+
+```
+  fraExplorBD.TreeView1.OnChange:= ...;
+```
+ 
+Pero al trabajar de esta manera, hay que asegurarse que el evento que vamos a usar, no esté siendo ya usado por el propio panel. Estos eventos no permitidos son en la versión actual: OnKeyDown(), OnMouseUp(), OnSelectionChanged(), OnClick(), OnDblClick(), OnExpanding() y OnCreateNodeClass().
+
+Notar que todos los eventos de 'TfraExplorBD' usan un objeto 'TOnNodSelec' como parámetro de salida, que es la clase que se usa para los nodos del árbol. Esto es así porque el panel de exploración utiliza una clase personalizada para sus nodos. 
+
+El objeto 'TOnNodSelec' tiene, aparte de los campos heredados de 'TTreeNode'), información específica del panel de exploración. Tiene la siguienet definición:
+
+```
+  TBDNodo = class(TTreeNode)  //tipo de nodo personalizado
+    private
+    public
+      tipNod: TsqNodeType;   //tipo de nodo
+      estado: TsqNodeStatus; //estado del nodo
+      user  : string;        //para cuando el nodo pertenezca a un usuario (para el usuario actual, dejar en blanco)
+      sql   : string;        //consulta ejecutada para llenar el nodo.
+      dat   : string;        //fila de datos, cuando se haya definido que el nodo trabaje así
+      source: string;        {Código fuente de procedimiento o función. Para los nodos Tabla y Vista, aquí
+                             se guarda información de los campos de la tabla y de los índices}
+      campos: TCamposSqlPlus;  {Encabezados de la información del nodo. Necesario para extraer la información
+                               del campo "dat" de los nodos hijos. En los nodos tabla y vista funcionan de modo
+                               distinto.}
+      function nombre: string; //devuelve el nombre del nodo
+      function RutaEs(cad: string): boolean;  //compara con una ruta
+    end;
+```
+
+Trabajar con 'TBDNodo', simplifica el trabajo al momento de controlar a los nodos del panel.
+
+PAra la interacción con el panel, existen dos funciones útiles:
+
+```
+    function NodSelec: TBDNodo;  //nodo selecionado
+    function UpdateNode(nod: TBDNodo): boolean;  //actualiza el contenido del nodo
+```
+
 Uso de la conexión
 ------------------
 
