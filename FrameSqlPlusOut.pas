@@ -1,4 +1,7 @@
 {
+FrameSQLPlusOut 0.5
+===================
+
 Define al Frame TfraSQLPlusOut. Este frame es un objeto visual, preparado para
 mostrar la salida de datos de un objeto TSQLPlusCon.
 Los datos se pueden mostrar en modo de texto o en modo grilla.

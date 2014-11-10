@@ -1,5 +1,6 @@
-{SQLPlusConsole 0.5b
-====================
+{
+SQLPlusConsole 0.5
+==================
 Por Tito Hinostroza 12/10/2014
 * Se cambia el nombre del método DisableOut() por DisableOutEdit().
 * Se cambia el nombre de "ed" a "edSal".

@@ -1,5 +1,5 @@
-SqlPlusConsole 0.5b
-===================
+SqlPlusConsole 0.5
+==================
 
 Librería en Lazarus, para crear conexiones a una base de datos en Oracle, usando el cliente SQLplus.
 
@@ -22,6 +22,22 @@ La librería SqlPlusConsole, consta de los siguientes archivos:
 * FrameCfgSqlPlusOut.pas -> Frame de configuración para FrameSqlPlusOut.
 
 Para una conexión sencilla, solo basta con usar las primeras tres unidades.
+
+Cambios en la versión 0.5
+-------------------------
+Ha habido considerables cambios en esta versión que incluye estandarización en los nombres de algunas propiedades y métodos de diversas clases.
+
+Además se ha cambiado el esquema de trabajo quitando al panel de exploración, la redirección de la salida, dejando esta tarea al objeto 'TSQLPlusCon'.
+
+Se ha identificado y documentado el manejo de los eventos para direccionar la salida correctamente. En este sentido, la documentación ha sido actualizada y ampliada, de modo que sea un apoyo sólido para el desarrollo de la librería.
+
+Para implementar la versión 0.5, se tuvo que mejorar también la librería 'UnTerminal', dando forma a la versión 0.6.
+
+Los cambios también afecta a la parte visual de la librería, ya que se cambiaron algunos íconos. 
+
+En esta versión aparece también un nuevo Frame 'FrameCfgSqlPlusOut'.
+
+Para mayor detalle sobre los cambios, ver los comentarios de los códigos fuente.
 
 SqlPlusConsole
 ==============
@@ -105,7 +121,7 @@ Para capturar la salida se pueden usar también eventos o definir un editor de s
 
 La especialización de 'TSQLPlusCon' con respecto a 'TConsoleProc', se da principalmente en el manejo de errores. 'TSQLPlusCon' contiene código considerable para reconocer los mensajes de error que genera el SQLPlus, en su salida de texto.
 
-Como terminal, 'TSQLPlusCon' hereda las características de 'TConsoleProc', así que incluye también la capacidad de procesar secuencias de control ANSI, pero estas funciones no son usadas en la práctica porque la salida del SQLPlus, es solo texto plano. Sin embargo es posible que se generen secuencias ANSI, si es que la conexión se realiza usando un cliente de telnet (llmanado remotamente al SSQLPLUS).
+Como terminal, 'TSQLPlusCon' hereda las características de 'TConsoleProc', así que incluye también la capacidad de procesar secuencias de control ANSI, pero estas funciones no son usadas en la práctica porque la salida del SQLPlus, es solo texto plano. Sin embargo es posible que se generen secuencias ANSI, si es que la conexión se realiza usando un cliente de telnet (llamando remotamente al SQLPLUS).
 
 Se ha creado 'TSQLPlusCon' como un terminal 'TConsoleProc' por los siguientes motivos:
 
@@ -546,7 +562,7 @@ El panel de exploración, requiere que se le pase la referencia de una conexión
 
 Eso no significa que no pueda usarse esa conexión para lanzar consultas a la base de datos.  El panel de exploración se ha diseñado para poder usar una conexión y poder compartirla con otros procesos de la aplicación. Cada vez que el panel de exploración necesita obtener información de la base de datos, verifica primero si la conexión referenciada, se encuentra disponible para usarla. De ser así toma el control de los eventos de la conexión para su trabajo interno. Si la conexión se encontrara ocupada, mostraría un mensaje de error y no ejecutaría la consulta.
 
-De la misma forma se espera que trabaje el objeto con el que se comparta la conexión para evitar interferencias con el trabajo.
+De la misma forma se espera que trabaje el objeto con el que se comparta la conexión, para evitar posibles interferencias.
 
 Solo como una funcionalidad adicional, se tienen definidos dos eventos-reflejo de TSQLPlusCon:
 

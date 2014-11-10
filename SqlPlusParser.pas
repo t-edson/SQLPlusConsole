@@ -1,6 +1,6 @@
 {
-SQLPlusParser
-=============
+SQLPlusParser 0.5
+=================
 Por Tito Hinostroza  12/10/2014
 * Se agregan métodos y variables para la exploración de datos que estén en un
 TStringList.

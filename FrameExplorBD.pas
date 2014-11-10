@@ -1,4 +1,5 @@
-{FrameExplorBD 0.5b
+{
+FrameExplorBD 0.5
 ===================
 Por Tito Hinostroza 11/10/2014
 * Se cambia el nombre de TEstadoNodo a TsqNodeStatus
@@ -19,6 +20,7 @@ nodos de tipo tabla o vista.
 simplifican sus parámetros.
 * Se elimina TfraExplorBD.DrawStatePanel(), porque la función de dibujar el estado,
 ya no es de este TfraExplorBD.
+* Se cambia el nombre de ActualizNodo() a UpdateNode().
 
 Descripción
 ===========
@@ -37,7 +39,7 @@ unit FrameExplorBD;
 interface
 uses
   Classes, SysUtils, Forms, Controls, ComCtrls, StdCtrls, LCLProc, SynEdit,
-  MisUtils, UnTerminal, SQLPlusConsole, SQLPlusParser, FrameSQLPlusOut,
+  MisUtils, UnTerminal, SQLPlusConsole, SQLPlusParser,
   FormVentSesion;
 
 type
@@ -89,13 +91,13 @@ type
   TBDNodo = class(TTreeNode)  //tipo de nodo personalizado
     private
     public
-      tipNod: TsqNodeType;    //tipo de nodo
-      estado: TsqNodeStatus;  //estado del nodo
-      user  : string;       //para cuando el nodo pertenezca a un usuario (para el usuario actual, dejar en blanco)
-      sql   : string;       //consulta ejecutada para llenar el nodo.
-      dat   : string;       //fila de datos, cuando se haya definido que el nodo trabaje así
-      source: string;       {Código fuente de procedimiento o función. Para los nodos Tabla y Vista, aquí
-                            se guarda información de los campos de la tabla y de los índices}
+      tipNod: TsqNodeType;   //tipo de nodo
+      estado: TsqNodeStatus; //estado del nodo
+      user  : string;        //para cuando el nodo pertenezca a un usuario (para el usuario actual, dejar en blanco)
+      sql   : string;        //consulta ejecutada para llenar el nodo.
+      dat   : string;        //fila de datos, cuando se haya definido que el nodo trabaje así
+      source: string;        {Código fuente de procedimiento o función. Para los nodos Tabla y Vista, aquí
+                             se guarda información de los campos de la tabla y de los índices}
       campos: TCamposSqlPlus;  {Encabezados de la información del nodo. Necesario para extraer la información
                                del campo "dat" de los nodos hijos. En los nodos tabla y vista funcionan de modo
                                distinto.}
@@ -118,7 +120,7 @@ type
     procedure sqlCon_ErrorSQL(CurXY: TPoint; const msg: string);
     procedure sqlCon_LineaCompleta(const txt: string);
     procedure sqlCon_ErrorConex(CurXY: TPoint; const msg: string);
-    procedure sqlCon_LlegoPrompt;
+    procedure sqlCon_QueryEnd;
     //Eventos de TreeView1
     procedure TreeView1CreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
@@ -157,7 +159,7 @@ type
     function TakeConnection: boolean;
   public
     //eventos para permitir personalizar las respuestas
-    OnMouseUpNod : TOnNodMouse;  //MouseUp sobe un nodo
+    OnMouseUpNod : TOnNodMouse;  //MouseUp sobre un nodo
     OnNodSelec   : TOnNodSelec;  //Selecciona un nodo
     OnNodClick   : TOnNodSelec;  //Click sobre nodo
     OnNodUpdate  : TOnNodSelec;  //Un nodo se ha actualizado
@@ -170,15 +172,14 @@ type
     //funciones generales
     procedure SetConnection(sqlCon0: TSQLPlusCon);  //inicia
     function NodSelec: TBDNodo;  //nodo selecionado
-    function ActualizNodo(nod: TBDNodo): boolean;  //actualiza el contenido del nodo
+    function UpdateNode(nod: TBDNodo): boolean;  //actualiza el contenido del nodo
     procedure MostVentanaSesion;
     procedure OculVentanaSesion;
     //reflejo de las funciones de sqlCon
 //    procedure Open;
 //    procedure Close;
-    //Funciones para manejo de salida
-//    procedure SetOutputInternal;
 //    procedure SendSQL(txt: string);
+    procedure SetLanguage(lang: string);
   end;
 
 implementation
@@ -267,7 +268,7 @@ begin
   end;
   enLeyendo:begin  //está leyendo datos
     if n.tipNod in [tnVista,tnProced,tnFuncio,tnTabla] then begin
-      PonerMensNodo(n, 'Leyendo...'); //no agrega nodo
+      PonerMensNodo(n, dic('Leyendo...')); //no agrega nodo
     end else begin  //otro tipo de nodo
       if n.Count>0 then n.DeleteChildren;
       nod:= TreeView1.Items.AddChild(n,MSJ_LEYENDO);  //agrega un nodo
@@ -351,7 +352,7 @@ begin
   //toma control de los eventos
   sqlCon.OnErrorConx:=@sqlCon_ErrorConex;
   sqlCon.OnErrorSQL:=@sqlCon_ErrorSQL;
-  sqlCon.OnQueryEnd :=@sqlCon_LlegoPrompt;
+  sqlCon.OnQueryEnd :=@sqlCon_QueryEnd;
   //configura eventos de salida de datos
   sqlCon.OnLineCompleted:=@sqlCon_LineaCompleta;
   //Aprovechamos los eventos adicionales para controlar a nuestro visor
@@ -373,27 +374,27 @@ var
   nod: TBDNodo;
 begin
   if user = '' then begin  //es el usuario actual
-    nod:= NuevoNodo(nodEsq,'Tablas', tnListTablas, 7);
+    nod:= NuevoNodo(nodEsq,dic('Tablas'), tnListTablas, 7);
     nod.user:=user;  //pasa al usuario
     nod.sql:='SELECT TABLE_NAME, ''      '' "OWNER", NUM_ROWS, TABLESPACE_NAME' +LineEnding+
              'FROM USER_TABLES ORDER BY 1;';
-    nod := NuevoNodo(nodEsq,'Vistas', tnListVistas,6);
+    nod := NuevoNodo(nodEsq,dic('Vistas'), tnListVistas,6);
     nod.user:=user;  //pasa al usuario
     nod.sql:='SELECT VIEW_NAME , ''      '' "OWNER", TEXT_LENGTH, TEXT' + LineEnding +
              'FROM USER_VIEWS ORDER BY 1;';
-    nod := NuevoNodo(nodEsq,'Índices', tnListIndic,5);
+    nod := NuevoNodo(nodEsq,dic('Índices'), tnListIndic,5);
     nod.user:=user;  //pasa al usuario
     nod.sql:='SELECT INDEX_NAME, ''      '' "OWNER", TABLE_NAME, UNIQUENESS, TABLESPACE_NAME' + LineEnding +
              'FROM USER_INDEXES ORDER BY 1;';
-    nod := NuevoNodo(nodEsq,'Procedimientos', tnListProced,4);
+    nod := NuevoNodo(nodEsq,dic('Procedimientos'), tnListProced,4);
     nod.user:=user;  //pasa al usuario
     nod.sql:='select OBJECT_NAME, OBJECT_ID, CREATED, LAST_DDL_TIME, STATUS, TEMPORARY'#13#10+
              'from user_objects where OBJECT_TYPE=''PROCEDURE'' ORDER BY 1;';
-    nod := NuevoNodo(nodEsq,'Funciones', tnListFuncio,3);
+    nod := NuevoNodo(nodEsq,dic('Funciones'), tnListFuncio,3);
     nod.user:=user;  //pasa al usuario
     nod.sql:='select OBJECT_NAME, OBJECT_ID, CREATED, LAST_DDL_TIME, STATUS, TEMPORARY'#13#10+
              'from user_objects where OBJECT_TYPE=''FUNCTION'' ORDER BY 1;';
-    nod := NuevoNodo(nodEsq,'Enlaces a BD', tnListDBlnks,2);
+    nod := NuevoNodo(nodEsq,dic('Enlaces a BD'), tnListDBlnks,2);
     nod.user:=user;  //pasa al usuario
     nod.sql:='SELECT DB_LINK, USERNAME, PASSWORD, HOST, CREATED' + LineEnding +
              'FROM USER_DB_LINKS ORDER BY 1;';
@@ -408,35 +409,35 @@ begin
   TreeView1.BeginUpdate;
   TreeView1.Items.Clear;  //inicia
   ////////////// ESQUEMA ACTUAL ///////////////////
-  nEsqActual := NuevoNodo(nil,'Esquema Actual',tnEsquem, 8);
+  nEsqActual := NuevoNodo(nil,dic('Esquema Actual'),tnEsquem, 8);
   nEsqActual.user:='';  //indica que es el usuario actual
   CreaEstructuraEsquema(nEsqActual,'');
   ////////////// OTROS ESQUEMAS ///////////////////
-  nEsqOtros := NuevoNodo(nil,'Otros Esquemas', tnListEsquem, 8);
+  nEsqOtros := NuevoNodo(nil,dic('Otros Esquemas'), tnListEsquem, 8);
   nEsqOtros.sql:='SELECT * FROM all_users;'; //Se requiere privilegios DBA.
 
   //////////// TODOS LOS ESQUEMAS ///////////////////
-  nEsqTodos := NuevoNodo(nil,'Todos los Esquemas',tnEsquem, 8);
-  nod:= NuevoNodo(nEsqTodos,'Tablas',tnListTablas,7);
+  nEsqTodos := NuevoNodo(nil,dic('Todos los Esquemas'),tnEsquem, 8);
+  nod:= NuevoNodo(nEsqTodos,dic('Tablas'),tnListTablas,7);
   nod.sql:='SELECT TABLE_NAME, OWNER, NUM_ROWS, TABLESPACE_NAME FROM ALL_TABLES ORDER BY 1;';
-  nod := NuevoNodo(nEsqTodos,'Vistas',tnListVistas,6);
+  nod := NuevoNodo(nEsqTodos,dic('Vistas'),tnListVistas,6);
   nod.sql:='SELECT VIEW_NAME, OWNER, TEXT_LENGTH, TEXT FROM ALL_VIEWS ORDER BY 1;';
-  nod := NuevoNodo(nEsqTodos,'Índices',tnListIndic,5);
+  nod := NuevoNodo(nEsqTodos,dic('Índices'),tnListIndic,5);
   nod.sql:='SELECT INDEX_NAME, OWNER, TABLE_NAME, UNIQUENESS, TABLESPACE_NAME FROM ALL_INDEXES ORDER BY 1;';
-  nod := NuevoNodo(nEsqTodos,'Procedimientos',tnListProced,4);
+  nod := NuevoNodo(nEsqTodos,dic('Procedimientos'),tnListProced,4);
   nod.sql:='select OBJECT_NAME, OBJECT_ID, CREATED, LAST_DDL_TIME, STATUS, TEMPORARY'#13#10+
            'from all_objects where OBJECT_TYPE=''PROCEDURE'' ORDER BY 1;';
-  nod := NuevoNodo(nEsqTodos,'Funciones',tnListFuncio,3);
+  nod := NuevoNodo(nEsqTodos,dic('Funciones'),tnListFuncio,3);
   nod.sql:='select OBJECT_NAME, OBJECT_ID, CREATED, LAST_DDL_TIME, STATUS, TEMPORARY'#13#10+
            'from all_objects where OBJECT_TYPE=''FUNCTION'' ORDER BY 1;';
-  nod := NuevoNodo(nEsqTodos,'Enlaces a BD',tnListDBlnks,2);
+  nod := NuevoNodo(nEsqTodos,dic('Enlaces a BD'),tnListDBlnks,2);
   nod.sql:='SELECT DB_LINK, OWNER, USERNAME, HOST, CREATED FROM ALL_DB_LINKS ORDER BY 1;';
 
   //////////// OTROS ///////////////////
-  nUsuar := NuevoNodo(nil,'Usuarios',tnListUsuar,1);
+  nUsuar := NuevoNodo(nil,dic('Usuarios'),tnListUsuar,1);
   {Realmente, debería ser sobre DBA_USERS, pero se requiere privilegios DBA.}
   nUsuar.sql:='SELECT USERNAME, USER_ID, CREATED FROM ALL_USERS;';
-  nTabSpa := NuevoNodo(nil,'TableSpaces',tnListTabSpa,0);
+  nTabSpa := NuevoNodo(nil,dic('TableSpaces'),tnListTabSpa,0);
   {Se requiere privilegios DBA.}
   nTabSpa.sql:='SELECT a.tablespace_name "NOMBRE", a.TOTAL "TOTAL(Mb)",'#13#10+
 '       a.TOTAL-b.LIBRE "USADO(Mb)",'#13#10+
@@ -568,7 +569,7 @@ begin
   end;
   TreeView1.EndUpdate;
 end;
-procedure TfraExplorBD.sqlCon_LlegoPrompt;
+procedure TfraExplorBD.sqlCon_QueryEnd;
 var
   lin: String;
   campos: TCamposSqlPlus;
@@ -737,7 +738,7 @@ begin
   PonerMensNodo(nodAct, nodAct.Count);
   FijEstadoNodo(nodAct,enEsperand);  //cambia estado
 end;
-function TfraExplorBD.ActualizNodo(nod: TBDNodo): boolean;
+function TfraExplorBD.UpdateNode(nod: TBDNodo): boolean;
 //Actualiza contenido del nodo, ejecutando su consulta
 begin
   Result := false;
@@ -767,7 +768,7 @@ procedure TfraExplorBD.TreeView1KeyDown(Sender: TObject; var Key: Word; //tecla 
 begin
   if TreeView1.Selected = nil then exit;
   if Key = 13 then   //expande el nodo seleccionado con <enter>
-    ActualizNodo(TBDNodo(TreeView1.Selected));
+    UpdateNode(TBDNodo(TreeView1.Selected));
 end;
 procedure TfraExplorBD.TreeView1MouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
@@ -861,7 +862,7 @@ begin
   if sqlCon.state <> ECO_READY then exit;
   sqlCon.SendSQl(txtSentEspera);  //lanza consulta
   txtSentEspera := '';  //limpia
-  sqlCon.OnQueryEnd:=@sqlCon_LlegoPrompt;  //restaura evento
+  sqlCon.OnQueryEnd:=@sqlCon_QueryEnd;  //restaura evento
 end;
 procedure TfraExplorBD.MostVentanaSesion;  //Abre la ventana de sesión
 begin
@@ -894,16 +895,9 @@ begin
     //había nodo esperando su resultado
     FijEstadoNodo(nodAct, enErrConex);
   end;
-end;}
+end;
 
-//Funciones para manejo de salida
-{procedure TfraExplorBD.SetOutputInternal;
-{Retorna la salida de texto a ventSes, como funciona en modo por defecto}
-begin
-  sqlCon.edSal := ventSes.edSal;
-  sqlCon.maxLinTer:=MAX_LIN_TER;   //retorna su capacidad
-end;}
-{procedure TfraExplorBD.SendSQL(txt: string);
+procedure TfraExplorBD.SendSQL(txt: string);
 {Función reflejo de sqlCon.SendSQL(), pero con la posibilidad de gestionar el tipo de salida
  (texto o grills)}
 begin
@@ -917,5 +911,32 @@ begin
   end;
 end;}
 
+procedure TfraExplorBD.SetLanguage(lang: string);
+//Rutina de traducción
+begin
+  case lowerCase(lang) of
+  'es': begin
+      //controles
+      //mensajes
+      dicClear;  //ya está en español
+    end;
+  'en': begin
+      //controles
+      //mensajes
+      dicSet('Leyendo...','Reading...');
+      dicSet('Tablas','Tables');
+      dicSet('Vistas','Views');
+      dicSet('Índices','Indexes');
+      dicSet('Procedimientos','Procedures');
+      dicSet('Funciones','Functions');
+      dicSet('Enlaces a BD','DB links');
+      dicSet('Esquema Actual','Current Scheme');
+      dicSet('Otros Esquemas','Other Schemes');
+      dicSet('Todos los Esquemas','All the Schemes');
+      dicSet('Usuarios','Users');
+      dicSet('TableSpaces','TableSpaces');
+      ///NO está completa la traducción
+
+    end; end; end;
 end.
 
